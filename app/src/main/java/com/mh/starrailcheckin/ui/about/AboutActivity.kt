@@ -63,11 +63,10 @@ import top.yukonga.miuix.kmp.basic.TopAppBar
 import top.yukonga.miuix.kmp.overlay.OverlayDialog
 import top.yukonga.miuix.kmp.theme.MiuixTheme
 
-/** 作者 B 站主页与 QQ 群帮助链接。 */
+/** 作者 B 站主页与 QQ 群号。 */
 object AboutLinks {
     const val AUTHOR_SPACE = BilibiliApi.SPACE_URL
-    const val QQ_GROUP =
-        "https://qun.qq.com/"
+    const val QQ_GROUP_NUMBER = "981703967"
     const val DEFAULT_AUTHOR_NAME = "mh梦虎"
 }
 
@@ -129,6 +128,13 @@ private fun AboutScreen(onBack: () -> Unit) {
         }.onFailure {
             android.widget.Toast.makeText(context, "无法打开链接", android.widget.Toast.LENGTH_SHORT).show()
         }
+    }
+
+    fun copyGroupNumber() {
+        val clipboard =
+            context.getSystemService(android.content.Context.CLIPBOARD_SERVICE) as android.content.ClipboardManager
+        clipboard.setPrimaryClip(android.content.ClipData.newPlainText("QQ群号", AboutLinks.QQ_GROUP_NUMBER))
+        android.widget.Toast.makeText(context, "群号 ${AboutLinks.QQ_GROUP_NUMBER} 已复制", android.widget.Toast.LENGTH_SHORT).show()
     }
 
     Column(
@@ -223,7 +229,7 @@ private fun AboutScreen(onBack: () -> Unit) {
             AboutItem("引用", "查看开源组件") {
                 context.startActivity(Intent(context, OpenSourceActivity::class.java))
             }
-            AboutItem("帮助与反馈", "加入 QQ 群 981703967") { openUrl(AboutLinks.QQ_GROUP) }
+            AboutItem("帮助与反馈", "QQ 群 ${AboutLinks.QQ_GROUP_NUMBER}，点击复制群号") { copyGroupNumber() }
             AboutItem("隐私政策", "查看隐私政策") {
                 context.startActivity(
                     Intent(context, PolicyActivity::class.java)

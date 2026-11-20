@@ -157,7 +157,7 @@ fun AppMain() {
         currentScreen = 0
     }
 
-    // 第一次打开时显示引导页（只在 DataStore 加载完后判断一次）；否则直接进主页，无启动页
+    // 第一次打开时显示引导页（本地配置读取后判断一次）；否则直接进主页，无启动页
     LaunchedEffect(guideFinished) {
         if (guideFinished == false) {
             currentScreen = 4

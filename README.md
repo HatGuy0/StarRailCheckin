@@ -34,12 +34,12 @@
 ```
 
 产物位于 `app/build/outputs/apk/release/`。
-签名配置不在源码仓库内，需自行在 `app/build.gradle.kts` 配置签名或使用调试签名构建。
+签名密钥与口令不随源码分发：`release.jks` 不入库，口令 / 别名从被忽略的本地 `local.properties`（`STORE_PASSWORD` / `KEY_ALIAS` / `KEY_PASSWORD`）读取；未配置签名时可使用调试签名构建。
 
 ## 资源与素材说明
 
-- 仓库**不随源码分发**游戏相关版权美术素材（角色头像、立绘、光锥、遗器、技能与奖励图标等）。
-- 应用运行时通过在线源加载图片并写入本地磁盘缓存，主要数据源：
+- 仓库**不随源码分发**角色头像（`assets/avatar/`）与立绘（`assets/portrait/`）；其余光锥、遗器、技能、奖励、元素与命途图标随源码入库。
+- 头像 / 立绘在应用运行时通过在线源加载并写入本地磁盘缓存，主要数据源：
   - [Mar-7th/StarRailRes](https://github.com/Mar-7th/StarRailRes)
   - [vizualabstract/StarRailStaticAPI](https://github.com/vizualabstract/StarRailStaticAPI)
 - `app/src/main/assets/` 下的 `enka/*.json`、`miao_*.json` 等为角色 / 光锥 / 遗器映射与规则数据文件，随源码提供。

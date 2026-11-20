@@ -1,4 +1,11 @@
 import org.jetbrains.kotlin.gradle.dsl.JvmTarget
+import java.util.Properties
+
+// 签名凭证从 local.properties 读取（该文件已被忽略，不入库）
+val keystoreProps = Properties().apply {
+    val local = rootProject.file("local.properties")
+    if (local.exists()) local.inputStream().use { load(it) }
+}
 
 plugins {
     id("com.android.application")
@@ -20,10 +27,10 @@ android {
 
     signingConfigs {
         create("release") {
-            storeFile = file("../release.jks")
-            storePassword = "starcheckin123"
-            keyAlias = "starcheckin"
-            keyPassword = "starcheckin123"
+            storeFile = rootProject.file("release.jks")
+            storePassword = keystoreProps.getProperty("STORE_PASSWORD", "")
+            keyAlias = keystoreProps.getProperty("KEY_ALIAS", "")
+            keyPassword = keystoreProps.getProperty("KEY_PASSWORD", "")
         }
     }
 
@@ -64,7 +71,7 @@ dependencies {
     implementation("io.github.kyant0:backdrop:1.0.6")
     implementation("io.github.kyant0:shapes:1.2.0")
 
-    // Miuix 组件库（0.9.0；阶段1仅引入依赖，暂不替换组件）
+    // Miuix 组件库（偏好条目 / 弹窗等）
     implementation("top.yukonga.miuix.kmp:miuix-ui-android:0.9.0")
     // Miuix 偏好条目组件（ArrowPreference / OverlaySpinnerPreference / RadioButtonPreference 等）
     implementation("top.yukonga.miuix.kmp:miuix-preference-android:0.9.0")
@@ -72,9 +79,6 @@ dependencies {
     // Miuix OverlayDialog 预测式返回手势依赖（AndroidX 官方坐标；1.0.1 为 Miuix 0.9.0 配套版本）
     implementation("androidx.navigationevent:navigationevent-android:1.0.1")
     implementation("androidx.navigationevent:navigationevent-compose-android:1.0.1")
-
-    // DataStore
-    implementation("androidx.datastore:datastore-preferences:1.1.1")
 
     // 基础
     implementation("androidx.core:core-ktx:1.13.1")
@@ -87,7 +91,7 @@ dependencies {
     // Coroutines
     implementation("org.jetbrains.kotlinx:kotlinx-coroutines-android:1.8.1")
 
-    // WorkManager 周期兜底提醒（进程被杀后由系统托管调度）
+    // WorkManager 后台周期任务（打卡校验 / 自动签到 / Cookie 检查 / 体力监控）
     implementation("androidx.work:work-runtime-ktx:2.9.1")
 
     // 二维码生成（扫码登录）

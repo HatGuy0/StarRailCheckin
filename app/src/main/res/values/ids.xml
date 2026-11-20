@@ -1,6 +1,5 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
-    <item name="fragmentContainerDynamic" type="id" />
     <!-- 与 androidx lifecycle/savedstate 同名的 ViewTree owner 标签 id，
          资源合并后映射到同一 int，供悬浮窗 ComposeView 读取。 -->
     <item name="view_tree_lifecycle_owner" type="id" />

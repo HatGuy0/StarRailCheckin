@@ -17,17 +17,12 @@ release.jks
 *.p12
 *.pem
 
-# ===== 版权美术素材（不随源码公开，运行时走在线加载/磁盘缓存） =====
-# 角色头像 / 立绘 / 光锥 / 遗器 / 技能 / 奖励 / 元素命途图标
+# ===== 版权美术素材（仅剥离角色头像 / 立绘，运行时走在线加载/磁盘缓存） =====
+# 其余图标（光锥 / 遗器 / 技能 / 奖励 / 元素命途）随源码入库
 app/src/main/assets/avatar/
 app/src/main/assets/portrait/
-app/src/main/assets/lightcone/
-app/src/main/assets/relic/
-app/src/main/assets/skill/
-app/src/main/assets/item/
-app/src/main/assets/filter/
 
-# 保留：app/src/main/assets/enka/ 与根目录 miao_*.json / *.json 等映射与规则数据
+# 保留：lightcone / relic / skill / item / filter 图标，enka/ 与根目录 miao_*.json / *.json 等映射与规则数据
 
 # ===== IDE / 系统 =====
 .idea/

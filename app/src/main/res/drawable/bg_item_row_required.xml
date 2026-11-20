@@ -1,0 +1,21 @@
+<?xml version="1.0" encoding="utf-8"?>
+<layer-list xmlns:android="http://schemas.android.com/apk/res/android">
+    <item>
+        <shape android:shape="rectangle">
+            <corners android:radius="@dimen/radius_m" />
+            <gradient
+                android:angle="0"
+                android:endColor="@color/anime_card_mid"
+                android:startColor="@color/anime_pill_bg"
+                android:type="linear" />
+        </shape>
+    </item>
+    <item>
+        <shape android:shape="rectangle">
+            <corners android:radius="@dimen/radius_m" />
+            <stroke
+                android:width="1.4dp"
+                android:color="@color/anime_purple" />
+        </shape>
+    </item>
+</layer-list>

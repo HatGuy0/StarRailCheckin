@@ -1,0 +1,41 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- 打卡弹窗：居中宽扁卡片 wrap_content；卡片内可自定义背景图（centerCrop 裁切）；无外层磨砂遮罩 -->
+<FrameLayout xmlns:android="http://schemas.android.com/apk/res/android" android:layout_width="match_parent" android:layout_height="match_parent" >
+
+    <!-- 居中宽扁卡片：宽度撑满两侧留白，高度跟随内容 -->
+    <FrameLayout android:id="@+id/cardRoot" android:layout_width="match_parent" android:layout_height="wrap_content" android:layout_gravity="center" android:layout_marginHorizontal="28dp" android:background="@drawable/bg_remind_glass_card" android:elevation="16dp" >
+
+        <!-- 卡片自定义背景图（初始0dp不参与测量，避免图片反向撑长卡片；可见时代码贴合卡片尺寸，centerCrop裁切） -->
+        <ImageView android:id="@+id/ivCardBg" android:layout_width="0dp" android:layout_height="0dp" android:contentDescription="@string/home_custom_bg" android:scaleType="centerCrop" android:visibility="gone" />
+
+        <View android:id="@+id/ivCardMask" android:layout_width="0dp" android:layout_height="0dp" android:background="#99141428" android:visibility="gone" />
+
+        <ImageView android:layout_width="34dp" android:layout_height="34dp" android:layout_gravity="top|end" android:layout_marginTop="10dp" android:layout_marginEnd="12dp" android:alpha="0.35" android:contentDescription="@null" android:rotation="16" android:src="@drawable/ic_sakura" />
+
+        <!-- 内容层：横向头部 + 紧凑纵向操作 -->
+        <LinearLayout android:layout_width="match_parent" android:layout_height="wrap_content" android:orientation="vertical" android:padding="20dp" >
+
+            <!-- 头部：图标 + 标题横向排布，压低整体高度 -->
+            <LinearLayout android:layout_width="match_parent" android:layout_height="wrap_content" android:gravity="center_vertical" android:orientation="horizontal" >
+
+                <ImageView android:layout_width="56dp" android:layout_height="56dp" android:contentDescription="@string/remind_title" android:src="@mipmap/ic_launcher" />
+
+                <TextView android:id="@+id/tvRemindTitle" android:layout_width="0dp" android:layout_height="wrap_content" android:layout_marginStart="14dp" android:layout_weight="1" android:text="@string/remind_title" android:textColor="@color/anime_gold" android:textSize="19sp" android:textStyle="bold" />
+            </LinearLayout>
+
+            <!-- 提示正文 -->
+            <TextView android:id="@+id/tvRemindMessage" android:layout_width="match_parent" android:layout_height="wrap_content" android:layout_marginTop="12dp" android:gravity="center" android:lineSpacingExtra="4dp" android:text="@string/remind_message" android:textColor="#E9E7F7" android:textSize="13sp" />
+
+            <!-- 主按钮：鎏金深色文字 -->
+            <androidx.appcompat.widget.AppCompatButton android:id="@+id/btnLaunchGame" android:layout_width="match_parent" android:layout_height="44dp" android:layout_marginTop="16dp" android:background="@drawable/bg_hsr_btn_gold" android:text="@string/remind_launch" android:textColor="#1A1A2E" android:textSize="14sp" android:textStyle="bold" android:stateListAnimator="@null" />
+
+            <!-- 并排次要按钮 -->
+            <LinearLayout android:layout_width="match_parent" android:layout_height="wrap_content" android:layout_marginTop="10dp" android:orientation="horizontal" >
+
+                <androidx.appcompat.widget.AppCompatButton android:id="@+id/btnSnooze" android:layout_width="0dp" android:layout_height="40dp" android:layout_marginEnd="6dp" android:layout_weight="1" android:background="@drawable/bg_remind_glass_outline" android:minWidth="0dp" android:paddingStart="6dp" android:paddingEnd="6dp" android:text="@string/remind_snooze" android:textColor="#E8E0C8" android:textSize="12sp" android:stateListAnimator="@null" />
+
+                <androidx.appcompat.widget.AppCompatButton android:id="@+id/btnClose" android:layout_width="0dp" android:layout_height="40dp" android:layout_marginStart="6dp" android:layout_weight="1" android:background="@drawable/bg_remind_glass_outline" android:minWidth="0dp" android:paddingStart="6dp" android:paddingEnd="6dp" android:text="@string/remind_close" android:textColor="#B8B8C8" android:textSize="12sp" android:stateListAnimator="@null" />
+            </LinearLayout>
+        </LinearLayout>
+    </FrameLayout>
+</FrameLayout>

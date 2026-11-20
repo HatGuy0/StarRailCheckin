@@ -1,0 +1,129 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!-- 星穹铁道全息终端风 - 深空蓝紫主色调 -->
+    <color name="primary">#7B6CF6</color>
+    <color name="primary_variant">#5A4BD1</color>
+    <color name="accent">#00D4FF</color>
+    <color name="accent_dark">#0099CC</color>
+    <color name="white">#FFFFFF</color>
+
+    <color name="chart_bar">#7B6CF6</color>
+    <color name="chart_text">#666666</color>
+    <color name="chart_grid">#DDDDDD</color>
+
+    <color name="status_ok">#4CD964</color>
+    <color name="status_warn">#FF6B6B</color>
+
+    <!-- 全息终端渐变 -->
+    <color name="grad_start">#1A1A2E</color>
+    <color name="grad_center">#16213E</color>
+    <color name="grad_end">#0F3460</color>
+    <color name="pill_ok_bg">#E8F7EE</color>
+    <color name="pill_warn_bg">#FDECEC</color>
+
+    <!-- 页面背景：深色全息模式 -->
+    <color name="bg_light">#F0EEFF</color>
+    <color name="bg_dark">#0D0D1A</color>
+
+    <!-- 卡片背景：全息玻璃 -->
+    <color name="card_light">#FFFFFF</color>
+    <color name="card_dark">#1A1A2E</color>
+
+    <!-- 全息霓虹色 -->
+    <color name="neon_cyan">#00D4FF</color>
+    <color name="neon_purple">#B388FF</color>
+    <color name="neon_pink">#FF6B9D</color>
+    <color name="neon_gold">#FFD700</color>
+
+    <!-- 属性数值高亮 -->
+    <color name="stat_hp">#FF6B6B</color>
+    <color name="stat_atk">#FF9F43</color>
+    <color name="stat_def">#4ECDC4</color>
+    <color name="stat_spd">#45B7D1</color>
+    <color name="stat_cr">#FFD93D</color>
+    <color name="stat_cd">#FF6B9D</color>
+    <color name="stat_elation">#B388FF</color>
+
+    <color name="launcher_bg_start">#1A1A2E</color>
+    <color name="launcher_bg_end">#16213E</color>
+    <color name="launcher_fg">#FFFFFF</color>
+
+    <!-- ================= 以下为 UI 大改新增设计令牌 =================
+         风格对齐：Usagi 留白 / RetroMusicPlayer 模块 /
+                   Boorusama 网格 / AnymeX 数据面板  -->
+
+    <!-- 玻璃拟态：亮色 -->
+    <color name="glass_surface_light">#B8FFFFFF</color>
+    <color name="glass_highlight_light">#FFFFFF</color>
+    <color name="glass_surface_dark">#59121212</color>
+    <color name="glass_stroke_light">#66FFFFFF</color>
+    <color name="glass_stroke_dark">#33FFFFFF</color>
+
+    <!-- 表面层次：Usagi 式留白分层 -->
+    <color name="surface_1_light">#FFFFFF</color>
+    <color name="surface_2_light">#F7F6FF</color>
+    <color name="surface_3_light">#EFEDFC</color>
+    <color name="surface_1_dark">#12101F</color>
+    <color name="surface_2_dark">#191627</color>
+    <color name="surface_3_dark">#211D33</color>
+
+    <!-- 主文本 / 次要文本 -->
+    <color name="text_primary_light">#17131F</color>
+    <color name="text_secondary_light">#6B6478</color>
+    <color name="text_hint_light">#9A93A8</color>
+    <color name="text_primary_dark">#EDEBFA</color>
+    <color name="text_secondary_dark">#A39DBA</color>
+    <color name="text_hint_dark">#6E6884</color>
+
+    <!-- 渐弱分隔线 / 柔和描边 -->
+    <color name="divider_light">#1F1A1A2E</color>
+    <color name="divider_dark">#2E2A3F</color>
+    <color name="stroke_focus">#337B6CF6</color>
+
+    <!-- 动效色：霓虹辉光 -->
+    <color name="glow_cyan">#8040E0FF</color>
+    <color name="glow_purple">#80B388FF</color>
+    <color name="ripple_light">#187B6CF6</color>
+    <color name="ripple_dark">#338E96FF</color>
+
+    <!-- 抽卡星级（AnymeX 数据面板强化） -->
+    <color name="star_5">#C9A45C</color>
+    <color name="star_4">#9A7BFF</color>
+    <color name="star_3">#6FA8DC</color>
+
+    <!-- 渐变横幅增强 -->
+    <color name="banner_start">#7B6CF6</color>
+    <color name="banner_mid">#5A4BD1</color>
+    <color name="banner_end">#0F3460</color>
+
+    <!-- 提醒弹窗鎏金强化 -->
+    <color name="gold_light">#F2D08B</color>
+    <color name="gold_deep">#8A6D2F</color>
+
+    <!-- ================= 二次元星海玻璃主题令牌（浅色） ================= -->
+    <color name="anime_bg_mid">#EFEAFF</color>
+    <color name="anime_card_top">#F7FFFFFF</color>
+    <color name="anime_card_mid">#EAFFFFFF</color>
+    <color name="anime_card_bottom">#D9F3EFFF</color>
+    <color name="anime_card_stroke">#4DFFFFFF</color>
+    <color name="anime_card_stroke_outer">#1F8B7CF6</color>
+    <color name="anime_purple">#8B7CF6</color>
+    <color name="anime_cyan">#1FB6EC</color>
+    <color name="anime_pink">#FF7FB4</color>
+    <color name="anime_gold">#E8B24B</color>
+    <color name="anime_text_primary">#1A1530</color>
+    <color name="anime_text_secondary">#6A6480</color>
+    <color name="anime_btn_start">#A294FF</color>
+    <color name="anime_btn_mid">#7B6CF6</color>
+    <color name="anime_btn_end">#5A4AD6</color>
+    <color name="anime_ghost_fill">#73FFFFFF</color>
+    <color name="anime_ghost_stroke">#4D8B7CF6</color>
+    <color name="anime_divider">#1A6A6480</color>
+    <color name="anime_input_fill">#D9FFFFFF</color>
+    <color name="anime_dialog_top">#FA1C1836</color>
+    <color name="anime_dialog_bottom">#F00F0C22</color>
+    <color name="anime_dialog_stroke">#66A99BFF</color>
+    <color name="anime_pill_bg">#338B7CF6</color>
+    <color name="anime_shadow">#338B7CF6</color>
+    <color name="chart_bar_cloud">#1FB6EC</color>
+</resources>

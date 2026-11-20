@@ -1,0 +1,18 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- 弹窗图标：圆形底 + 四角星 -->
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:width="88dp"
+    android:height="88dp"
+    android:viewportWidth="96"
+    android:viewportHeight="96">
+    <path
+        android:fillColor="#5B67E8"
+        android:pathData="M48,48m-44,0a44,44 0,1 1,88 0a44,44 0,1 1,-88 0" />
+    <group
+        android:translateX="36"
+        android:translateY="36">
+        <path
+            android:fillColor="#FFFFFF"
+            android:pathData="M12,17.27L18.18,21l-1.64,-7.03L22,9.24l-7.19,-0.61L12,2L9.19,8.63L2,9.24l5.46,4.73L5.82,21z" />
+    </group>
+</vector>

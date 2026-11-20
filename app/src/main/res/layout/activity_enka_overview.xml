@@ -1,0 +1,144 @@
+<?xml version="1.0" encoding="utf-8"?>
+<FrameLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent">
+
+    <!-- 星空碎石背景（竖屏裁切适配） -->
+    <ImageView
+        android:layout_width="match_parent"
+        android:layout_height="match_parent"
+        android:scaleType="centerCrop"
+        android:src="@drawable/enka_bg" />
+
+    <!-- 深色压暗遮罩 -->
+    <View
+        android:layout_width="match_parent"
+        android:layout_height="match_parent"
+        android:background="#590A0D18" />
+
+    <ScrollView
+        android:id="@+id/overviewScroll"
+        android:layout_width="match_parent"
+        android:layout_height="match_parent"
+        android:background="@android:color/transparent"
+        android:clipToPadding="false"
+        android:paddingBottom="24dp"
+        android:fillViewport="true">
+
+        <LinearLayout
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:orientation="vertical"
+            android:paddingLeft="12dp"
+            android:paddingRight="12dp"
+            android:paddingTop="10dp">
+
+            <!-- 顶部返回 + 标题行 -->
+            <LinearLayout
+                android:id="@+id/overviewHeaderRow"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:orientation="horizontal"
+                android:gravity="center_vertical"
+                android:layout_marginBottom="8dp">
+
+                <TextView
+                    android:id="@+id/btnOverviewBack"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:text="‹ 返回"
+                    android:textColor="#EDEBFA"
+                    android:textSize="15sp"
+                    android:textStyle="bold"
+                    android:padding="8dp" />
+
+                <TextView
+                    android:id="@+id/tvOverviewTitle"
+                    android:layout_width="0dp"
+                    android:layout_height="wrap_content"
+                    android:layout_weight="1"
+                    android:text="练度总览"
+                    android:textColor="#EDEBFA"
+                    android:textSize="17sp"
+                    android:textStyle="bold"
+                    android:gravity="center" />
+
+                <View
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:padding="8dp" />
+            </LinearLayout>
+
+            <!-- 玩家信息 -->
+            <TextView
+                android:id="@+id/tvOverviewPlayer"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:gravity="center"
+                android:textColor="#A39DBA"
+                android:textSize="13sp"
+                android:layout_marginBottom="10dp" />
+
+            <!-- 页签：练度总览 / 遗器仓库 -->
+            <LinearLayout
+                android:id="@+id/overviewTabRow"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:orientation="horizontal"
+                android:gravity="center"
+                android:layout_marginBottom="12dp" />
+
+            <!-- 遗器仓库筛选行（总览页签隐藏） -->
+            <LinearLayout
+                android:id="@+id/overviewFilterRow"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:orientation="horizontal"
+                android:gravity="center_vertical"
+                android:layout_marginBottom="10dp"
+                android:visibility="gone">
+
+                <HorizontalScrollView
+                    android:layout_width="0dp"
+                    android:layout_height="wrap_content"
+                    android:layout_weight="1"
+                    android:scrollbars="none">
+
+                    <LinearLayout
+                        android:id="@+id/overviewFilterChips"
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:orientation="horizontal" />
+                </HorizontalScrollView>
+
+                <TextView
+                    android:id="@+id/btnOverviewSort"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:text="排序:评分"
+                    android:textColor="#5DADE2"
+                    android:textSize="11sp"
+                    android:paddingStart="10dp"
+                    android:paddingEnd="4dp" />
+            </LinearLayout>
+
+            <!-- 内容容器（动态生成） -->
+            <LinearLayout
+                android:id="@+id/overviewContainer"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:orientation="vertical" />
+
+            <!-- 底部提示 -->
+            <TextView
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="16dp"
+                android:gravity="center"
+                android:text="数据来自 Mihomo（鳄梨）第三方服务 · 评分仅供参考"
+                android:textColor="#A39DBA"
+                android:textSize="11sp" />
+        </LinearLayout>
+    </ScrollView>
+</FrameLayout>

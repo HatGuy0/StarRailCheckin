@@ -1,0 +1,221 @@
+<?xml version="1.0" encoding="utf-8"?>
+<manifest xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:tools="http://schemas.android.com/tools">
+
+    <!-- 查询所有应用（用于一键启动游戏） -->
+    <queries>
+        <package android:name="com.miHoYo.hkrpg" />
+        <package android:name="com.mihoyo.hkrpg" />
+        <package android:name="com.miHoYo.hkrpg.bilibili" />
+        <package android:name="com.miHoYo.cloudgames.hkrpg" />
+    </queries>
+
+    <!-- 网络权限 -->
+    <uses-permission android:name="android.permission.INTERNET" />
+    <uses-permission android:name="android.permission.ACCESS_NETWORK_STATE" />
+
+    <!-- 通知权限 -->
+    <uses-permission android:name="android.permission.POST_NOTIFICATIONS" />
+    <!-- 闹钟权限 -->
+    <uses-permission android:name="android.permission.SCHEDULE_EXACT_ALARM" />
+    <uses-permission android:name="android.permission.USE_EXACT_ALARM" />
+    <!-- 震动权限 -->
+    <uses-permission android:name="android.permission.VIBRATE" />
+    <!-- 读取使用情况（用于游玩时长统计） -->
+    <uses-permission android:name="android.permission.PACKAGE_USAGE_STATS"
+        tools:ignore="ProtectedPermissions" />
+    <!-- 悬浮窗权限（用于后台提醒弹窗） -->
+    <uses-permission android:name="android.permission.SYSTEM_ALERT_WINDOW" />
+    <!-- 开机自启权限 -->
+    <uses-permission android:name="android.permission.RECEIVE_BOOT_COMPLETED" />
+    <!-- 锁屏全屏提醒弹窗 -->
+    <uses-permission android:name="android.permission.USE_FULL_SCREEN_INTENT" />
+    <!-- 前台保活服务 -->
+    <uses-permission android:name="android.permission.FOREGROUND_SERVICE" />
+    <uses-permission android:name="android.permission.FOREGROUND_SERVICE_DATA_SYNC" />
+    <!-- 闹钟触发期间保持 CPU 唤醒 -->
+    <uses-permission android:name="android.permission.WAKE_LOCK" />
+    <!-- 请求忽略电池优化（保活兜底） -->
+    <uses-permission android:name="android.permission.REQUEST_IGNORE_BATTERY_OPTIMIZATIONS" />
+
+    <application
+        android:name=".StarRailApp"
+        android:allowBackup="true"
+        android:icon="@mipmap/ic_launcher"
+        android:label="@string/app_name"
+        android:theme="@style/Theme.StarRailCheckin">
+        <activity
+            android:name=".MainActivity"
+            android:exported="false"
+            android:screenOrientation="portrait"
+            android:configChanges="orientation|screenSize" />
+
+        <receiver
+            android:name=".AlarmReceiver"
+            android:exported="false" />
+
+        <receiver
+            android:name=".util.BootReceiver"
+            android:exported="true">
+            <intent-filter>
+                <action android:name="android.intent.action.BOOT_COMPLETED" />
+                <action android:name="android.intent.action.MY_PACKAGE_REPLACED" />
+            </intent-filter>
+        </receiver>
+
+        <service
+            android:name=".service.KeepAliveAccessibilityService"
+            android:enabled="true"
+            android:exported="false"
+            android:permission="android.permission.BIND_ACCESSIBILITY_SERVICE">
+            <intent-filter>
+                <action android:name="android.accessibilityservice.AccessibilityService" />
+            </intent-filter>
+            <meta-data
+                android:name="android.accessibilityservice"
+                android:resource="@xml/accessibility_service_config" />
+        </service>
+
+        <service
+            android:name=".service.KeepAliveService"
+            android:enabled="true"
+            android:exported="false"
+            android:foregroundServiceType="dataSync" />
+
+        <activity
+            android:name=".WelcomeActivity"
+            android:exported="true">
+            <intent-filter>
+                <action android:name="android.intent.action.MAIN" />
+                <category android:name="android.intent.category.LAUNCHER" />
+            </intent-filter>
+        </activity>
+
+        <activity
+            android:name=".SetupDoneActivity"
+            android:exported="false" />
+
+        <activity
+            android:name=".AgreementActivity"
+            android:exported="false" />
+
+        <!-- 图片裁剪（uCrop）：头像 1:1 / 打卡卡片背景扁比例；子类补状态栏避让 -->
+        <activity
+            android:name=".CropActivity"
+            android:exported="false"
+            android:screenOrientation="portrait"
+            android:theme="@style/Theme.AppCompat.Light.NoActionBar" />
+
+        <activity
+            android:name=".GuideActivity"
+            android:exported="false" />
+
+        <activity
+            android:name=".LoginWebViewActivity"
+            android:exported="false" />
+
+        <activity
+            android:name=".ui.gacha.GachaInputActivity"
+            android:exported="false" />
+
+        <activity
+            android:name=".ui.gacha.GachaShowcaseActivity"
+            android:exported="false" />
+
+        <activity
+            android:name=".ui.profile.EnkaInputActivity"
+            android:exported="false" />
+
+        <activity
+            android:name=".ui.profile.AllCharactersActivity"
+            android:exported="false" />
+
+        <activity
+            android:name=".ui.profile.AvatarDetailActivity"
+            android:exported="false" />
+
+        <activity
+            android:name=".ui.profile.EnkaShowcaseActivity"
+            android:exported="false" />
+
+        <activity
+            android:name=".ui.profile.EnkaOverviewActivity"
+            android:exported="false" />
+
+        <activity
+            android:name=".ui.account.AccountManagerActivity"
+            android:exported="false"
+            android:screenOrientation="portrait" />
+
+        <activity
+            android:name=".ui.about.AboutActivity"
+            android:exported="false"
+            android:screenOrientation="portrait" />
+
+        <activity
+            android:name=".ui.about.OpenSourceActivity"
+            android:exported="false"
+            android:screenOrientation="portrait" />
+
+        <activity
+            android:name=".ui.about.PolicyActivity"
+            android:exported="false"
+            android:screenOrientation="portrait" />
+
+        <activity
+            android:name=".ui.tools.OfficialToolsActivity"
+            android:exported="false"
+            android:label="养成工具箱"
+            android:screenOrientation="landscape"
+            android:configChanges="orientation|screenSize|keyboardHidden"
+            android:windowSoftInputMode="adjustResize" />
+
+        <activity
+            android:name=".ui.challenge.ChallengeRecordsActivity"
+            android:exported="false"
+            android:label="逐光捡金-战绩查询"
+            android:screenOrientation="portrait" />
+
+        <activity
+            android:name=".ui.ledger.LedgerActivity"
+            android:exported="false"
+            android:label="开拓月历"
+            android:screenOrientation="portrait" />
+
+        <activity
+            android:name=".ui.collection.CollectionActivity"
+            android:exported="false"
+            android:label="成就 · 图鉴收集"
+            android:screenOrientation="portrait" />
+
+        <activity
+            android:name=".ui.home.AnnounceDetailActivity"
+            android:exported="false"
+            android:screenOrientation="portrait" />
+
+        <activity
+            android:name=".ui.home.ImageViewerActivity"
+            android:exported="false"
+            android:screenOrientation="portrait" />
+
+        <activity
+            android:name=".RemindDialogActivity"
+            android:exported="false"
+            android:theme="@style/Theme.StarRailCheckin.RemindDialog"
+            android:excludeFromRecents="true"
+            android:launchMode="singleInstance"
+            android:showOnLockScreen="true"
+            android:turnScreenOn="true" />
+
+        <!-- 日志导出 FileProvider -->
+        <provider
+            android:name="androidx.core.content.FileProvider"
+            android:authorities="${applicationId}.fileprovider"
+            android:exported="false"
+            android:grantUriPermissions="true">
+            <meta-data
+                android:name="android.support.FILE_PROVIDER_PATHS"
+                android:resource="@xml/file_paths" />
+        </provider>
+    </application>
+</manifest>

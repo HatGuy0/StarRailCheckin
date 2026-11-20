@@ -1,0 +1,238 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="app_name">星铁打卡小助手</string>
+
+    <!-- 页面标题 -->
+    <string name="tab_home">首页</string>
+    <string name="tab_check">打卡</string>
+    <string name="tab_profile">我的</string>
+    <string name="tab_settings">设置</string>
+
+    <!-- 首页 -->
+    <string name="home_today_title">今日星穹铁道使用记录</string>
+    <string name="home_opened">今日是否打开</string>
+    <string name="home_opened_yes">已打开</string>
+    <string name="home_opened_no">未打开</string>
+    <string name="home_foreground_time">前台使用时长</string>
+    <string name="home_launch_count">启动次数</string>
+    <string name="home_refresh">刷新</string>
+    <string name="home_remind_time">每日提醒时间</string>
+    <string name="home_remind_time_hint">点击选择每日提醒时间</string>
+    <string name="home_remind_style">提醒样式</string>
+    <string name="home_custom_sound">自定义提醒音效</string>
+    <string name="home_custom_bg">自定义弹窗卡片背景</string>
+    <string name="home_sound_default">默认提示音</string>
+    <string name="home_bg_default">默认卡片背景（磨砂）</string>
+    <string name="home_go_settings">跳转设置页面</string>
+    <string name="home_submit_alarm">提交闹钟配置</string>
+    <string name="home_alarm_saved">闹钟已提交，将在每日 %1$s 检测打卡</string>
+    <string name="home_exact_alarm_denied">系统未授予精确闹钟权限，提醒可能延迟，请开启</string>
+    <string name="home_open_exact_alarm">去开启精确闹钟</string>
+    <string name="home_exact_alarm_toast">未授予精确闹钟权限，提醒可能延迟，请点击页面下方提示开启</string>
+    <string name="home_sound_picked">音效已设置：%1$s</string>
+    <string name="home_bg_picked">卡片背景图已设置</string>
+
+    <!-- 首页新卡片 -->
+    <string name="home_stats_title">打卡统计</string>
+    <string name="home_stats_streak">连续天数</string>
+    <string name="home_stats_total">累计打卡</string>
+    <string name="home_stats_best">最长连续</string>
+    <string name="home_banner_title">当前卡池 / 活动</string>
+    <string name="home_banner_default">4.3版本活动进行中\n· 新角色：灵砂、飞霄复刻\n· 活动：初龙对谈等\n· 每日签到奖励可在游戏内领取</string>
+    <string name="home_news_title">星铁最新公告</string>
+    <string name="home_news_refresh">刷新</string>
+    <string name="home_news_loading">加载中…</string>
+    <string name="home_news_failed">公告加载失败，点击重试</string>
+    <string name="home_news_empty">暂无公告</string>
+
+    <!-- Enka 角色橱窗 -->
+    <string name="profile_enka_title">角色橱窗查询</string>
+    <string name="profile_enka_hint">输入UID查询公开角色面板（无需登录，数据来自Enka-Network第三方）</string>
+    <string name="profile_enka_uid_hint">输入星铁UID</string>
+    <string name="profile_enka_query">查询</string>
+    <string name="profile_enka_loading">查询中…</string>
+    <string name="profile_enka_failed">查询失败：UID错误或该玩家未开启角色橱窗</string>
+    <string name="profile_enka_player">玩家：%1$s（开拓等级%2$s）</string>
+
+    <!-- 打卡页 -->
+    <string name="check_title">打卡</string>
+    <string name="check_test_btn">弹窗测试（强制触发）</string>
+    <string name="check_status">打卡状态</string>
+    <string name="check_done">今日已打卡</string>
+    <string name="check_todo">今日待打卡</string>
+    <string name="check_countdown">距离提醒时间</string>
+    <string name="check_countdown_ok">提醒时间已过，下次提醒 %1$s</string>
+    <string name="check_week_title">最近7天游戏时长（分钟）</string>
+    <string name="check_history_title">打卡历史（近14天）</string>
+    <string name="check_launch_game">一键启动星穹铁道</string>
+    <string name="check_launch_fail">未检测到星穹铁道（com.mihoyo.hkrpg）</string>
+    <string name="check_empty">暂无数据</string>
+
+    <!-- 我的页 -->
+    <string name="profile_not_login">未登录 · 点击登录米游社</string>
+    <string name="profile_uid">UID</string>
+    <string name="profile_server">服务器</string>
+    <string name="profile_power_title">开拓力</string>
+    <string name="profile_current_power">当前开拓力</string>
+    <string name="profile_reserve_power">备用开拓力</string>
+    <string name="profile_recover">恢复满所需</string>
+    <string name="profile_refresh">刷新</string>
+    <!-- 每日签到模块 -->
+    <string name="profile_sign_title">米游社每日签到</string>
+    <string name="profile_sign_btn">签到</string>
+    <string name="profile_sign_loading">加载中…</string>
+    <string name="profile_sign_not_login">未登录，无法签到</string>
+    <string name="profile_sign_done">今日已签到 ✅</string>
+    <string name="profile_sign_undo">今日还未签到，点击右上角签到</string>
+    <string name="profile_sign_reward_today">今日奖励：%1$s</string>
+    <string name="profile_sign_days">本月已连续签到 %1$d 天</string>
+    <string name="profile_sign_failed">%1$s</string>
+    <string name="profile_sign_success_toast">签到成功，奖励已发放</string>
+    <string name="profile_sign_already">今天已经签到过啦</string>
+    <!-- 扫码登录 -->
+    <string name="profile_qr_login">米游社扫码登录</string>
+    <string name="profile_qr_waiting">请用米游社App扫描二维码…</string>
+    <string name="profile_qr_scanned">已扫码，请在手机上确认</string>
+    <string name="profile_qr_confirmed">登录成功！</string>
+    <string name="profile_qr_expired">二维码已过期，点击重新生成</string>
+    <string name="profile_qr_failed">二维码生成失败，请重试</string>
+    <!-- 设备指纹绑定 -->
+    <string name="profile_device_title">绑定设备指纹（抓包）</string>
+    <string name="profile_device_unbound">未绑定设备指纹</string>
+    <string name="profile_device_bound">已绑定设备指纹（已掩码）</string>
+    <string name="profile_device_hint">粘贴格式：device_id:device_fp</string>
+    <string name="profile_device_save">保存</string>
+    <string name="profile_device_clear">清除</string>
+    <string name="profile_device_saved">设备指纹已保存</string>
+    <string name="profile_device_cleared">已清除设备指纹</string>
+    <string name="profile_device_invalid">格式错误，请粘贴 device_id:device_fp</string>
+    <!-- 抽卡记录解析 -->
+    <string name="profile_gacha_title">抽卡记录解析</string>
+    <string name="profile_gacha_auto">自动拉取</string>
+    <string name="profile_gacha_paste_btn">粘贴链接拉取</string>
+    <string name="profile_gacha_link_hint">粘贴游戏内「跃迁记录」分享链接（含authkey）…</string>
+    <string name="profile_gacha_loading">拉取中…</string>
+    <string name="profile_gacha_hint">粘贴链接即可直拉（无需Cookie）；自动拉取需Cookie含stoken</string>
+    <string name="profile_gacha_empty">未拉到记录</string>
+    <string name="profile_gacha_auto_fail_hint">自动换取authkey失败（无stoken或风控），请复制游戏内「跃迁记录」链接点粘贴拉取</string>
+
+    <!-- 风险提示 -->
+    <string name="profile_risk_warning">⚠️ 重要提示：\n1. device_id/fp 必须抓本机正版米游社App获取，网上复制他人指纹大概率无效\n2. 米游社更新、清除缓存后设备指纹会失效，需重新填入\n3. 登录凭证会过期，需定期重新扫码\n4. 受米游社风控限制，不保证签到100%成功\n5. 所有凭据仅保存在本机，不会上传</string>
+    <!-- 手动导入Cookie -->
+    <string name="profile_cookie_title">手动导入Cookie（兜底方案）</string>
+    <string name="profile_cookie_hint">如果扫码登录失败，可从米游社App抓包复制完整Cookie粘贴到这里。需要包含ltoken、account_id、stoken等字段。</string>
+    <string name="profile_cookie_input_hint">粘贴完整Cookie字符串…</string>
+    <string name="profile_cookie_import">导入Cookie</string>
+    <string name="profile_cookie_empty">请先粘贴Cookie字符串</string>
+    <string name="profile_cookie_importing">正在导入并拉取角色信息…</string>
+    <string name="profile_logout">退出登录</string>
+    <string name="profile_logout_confirm">确定退出登录？将清空本地Cookie与UID缓存</string>
+    <string name="profile_login_success">登录成功</string>
+    <string name="profile_avatar_hint">点击头像登录 ｜ 长按或点右上角修改头像</string>
+    <string name="profile_avatar_set">头像已修改</string>
+    <string name="profile_avatar_fail">头像保存失败，请重试</string>
+    <string name="profile_api_error">%1$s</string>
+    <string name="profile_loading">加载中…</string>
+    <string name="profile_no_role">未查询到星穹铁道角色，请确认账号已绑定</string>
+
+    <!-- 设置页 -->
+    <string name="settings_title">设置</string>
+    <string name="settings_permissions">权限重新配置</string>
+    <string name="settings_accessibility">无障碍服务（保活防杀后台）</string>
+    <string name="settings_usage_stats">应用使用记录权限（打卡判断必需）</string>
+    <string name="settings_autostart">自启动（国产ROM防杀）</string>
+    <string name="settings_battery">后台无限制（忽略电池优化）</string>
+    <string name="settings_notify_permission">状态栏常驻通知权限</string>
+    <string name="settings_open">去开启</string>
+    <string name="settings_enabled">已开启</string>
+    <string name="settings_disabled">未开启</string>
+    <string name="settings_overlay">悬浮窗权限（后台/锁屏弹窗必需）</string>
+    <string name="settings_exact_alarm">精确闹钟权限（提醒准时必需）</string>
+    <string name="settings_theme">主题切换</string>
+    <string name="settings_theme_system">跟随系统</string>
+    <string name="settings_theme_light">浅色模式</string>
+    <string name="settings_theme_dark">深色模式</string>
+    <string name="settings_keepalive">保活辅助</string>
+    <string name="settings_keep_notify">状态栏常驻通知开关</string>
+    <string name="settings_remind_card">打卡提醒（震动与文案）</string>
+    <string name="settings_remind_vibrate">到点震动提醒</string>
+    <string name="settings_remind_vibrate_desc">开启后到点循环短震动；关闭则只播放提示音（默认关闭）</string>
+    <string name="settings_remind_title_hint">弹窗标题（留空恢复默认文案）</string>
+    <string name="settings_remind_msg_hint">弹窗正文（留空恢复默认文案，可换行）</string>
+    <string name="settings_remind_text_save">保存自定义文案</string>
+    <string name="settings_remind_saved">打卡文案已保存；留空的项目将使用默认文案</string>
+    <string name="settings_times">打卡提醒时段（可多个）</string>
+    <string name="settings_times_desc">每个时间到点都会触发；触发后自动排到次日，「稍后提醒」延后仍可用</string>
+    <string name="settings_times_add">＋ 添加提醒时间</string>
+    <string name="settings_times_remove">删除</string>
+    <string name="settings_times_dup">该时间已存在</string>
+    <string name="settings_times_saved">提醒时间已更新</string>
+    <string name="settings_style">提醒外观（音效 / 卡片背景）</string>
+    <string name="settings_sound_pick">选择提示音效</string>
+    <string name="settings_sound_default">默认提示音</string>
+    <string name="settings_bg_pick">选择卡片背景图（自动裁剪）</string>
+    <string name="settings_bg_default">默认背景</string>
+    <string name="settings_bg_picked">已自定义背景</string>
+    <string name="settings_log">日志抓取、导出</string>
+    <string name="settings_log_desc">导出完整运行日志（应用启动/前台服务/闹钟/检测结果/API请求与报错）</string>
+    <string name="settings_export_log">导出运行日志</string>
+    <string name="settings_author">作者</string>
+    <string name="settings_author_name">mh梦虎</string>
+    <string name="settings_version">版本&amp;反馈</string>
+    <string name="settings_version_text">星铁打卡小助手为开拓者打造\n该版本处于beta测试版，如有问题，请反馈至群981703967</string>
+    <string name="settings_version_name">当前版本：%1$s</string>
+    <string name="settings_guide_again">重新打开引导页</string>
+    <string name="settings_bilibili">打开B站链接</string>
+    <string name="settings_theme_applied">主题已切换</string>
+
+    <!-- 引导页 -->
+    <string name="guide_title">欢迎使用星铁打卡小助手</string>
+    <string name="guide_subtitle">每日定时检测《崩坏：星穹铁道》是否登录，为开拓者保驾护航</string>
+    <string name="guide_usage_required">必须开启「应用使用记录权限」才能使用本App</string>
+    <string name="guide_usage_desc">用于判断今日是否启动过星穹铁道</string>
+    <string name="guide_optional">按需开启（推荐）</string>
+    <string name="guide_accessibility">无障碍服务 · 保活防杀后台</string>
+    <string name="guide_autostart">自启动 · 国产ROM防杀</string>
+    <string name="guide_battery">后台无限制 · 忽略电池优化</string>
+    <string name="guide_notify">状态栏常驻通知 · 保活常驻</string>
+    <string name="guide_overlay">悬浮窗权限 · 后台/锁屏弹窗</string>
+    <string name="guide_enter">继续</string>
+    <string name="guide_enter_disabled">请先开启应用使用记录权限</string>
+
+    <!-- 首次引导流程（欢迎页 / 权限设置 / 协议与声明 / 设置完成） -->
+    <string name="welcome_next">继续</string>
+    <string name="guide_perm_title">权限设置</string>
+    <string name="guide_perm_subtitle">每日打卡守护，需要以下必要权限</string>
+    <string name="agreement_title">协议与声明</string>
+    <string name="agreement_subtitle">为了给您提供更好的服务，您需要阅读并同意《用户协议》才可继续使用，我们将严格遵守相关法律法规保护您的个人信息。</string>
+    <string name="agreement_agree_hint">我已仔细阅读并同意上述条款</string>
+    <string name="agreement_continue">同意并继续</string>
+    <string name="done_subtitle">设置完毕</string>
+    <string name="done_start">开始使用</string>
+
+    <string name="user_agreement_text">欢迎使用「星铁打卡小助手」。本用户协议（下称「本协议」）是您与本应用开发者之间就使用本应用所达成的约定。请您在使用本应用前仔细阅读并充分理解本协议全部内容。您勾选同意或开始使用本应用，即视为您已阅读、理解并同意接受本协议的全部条款。\n\n【一、服务说明】\n1. 本应用是一款面向《崩坏：星穹铁道》玩家、用于每日登录打卡提醒的工具类辅助应用，提供使用记录检测、每日提醒、游戏快捷启动等本地功能。\n2. 米游社签到、角色橱窗查询、跃迁（抽卡）记录解析等功能依赖第三方服务（米游社、Enka-Network 等），相关功能是否可用取决于第三方服务状态。\n3. 本应用为个人开发、自由分发，不向用户收取任何费用，也不与上述游戏运营方存在任何合作关系或关联关系。\n\n【二、权限使用说明】\n1. 为提供核心打卡功能，本应用需要申请并合理使用若干系统权限，包括：应用使用记录、通知、悬浮窗、后台运行等。所有权限仅用于实现对应功能，不会用于任何未经授权的用途。\n2. 涉及的登录凭证（Cookie）、设备指纹等数据默认仅保存在您本机，不会主动上传至任何服务器。\n3. 您可以随时在系统「设置」中撤回本应用已授予的权限；撤回后部分功能可能无法正常使用。\n\n【三、用户行为规范】\n1. 您承诺不会利用本应用从事任何违反法律法规、危害网络安全或侵犯第三方合法权益的行为。\n2. 您理解：米游社风控、游戏运营策略或第三方接口调整，可能导致签到、解析、查询等功能暂时不可用，本应用不对此承担保证责任。\n3. 请勿将本应用用于任何商业用途或二次分发谋利。\n\n【四、免责声明】\n1. 本应用按「现状」提供，不对功能的持续可用性、准确性作任何明示或默示的保证。\n2. 因使用本应用造成的任何直接或间接损失（包括但不限于账号风险、数据丢失、第三方服务封禁等），在适用法律允许的范围内，开发者不承担赔偿责任。\n3. 使用涉及账号凭证（如 Cookie、设备指纹）的功能时，请您自行评估风险并妥善保管，因个人原因导致的凭据泄露由您自行承担。\n\n【五、协议变更】\n1. 开发者有权根据功能迭代、法律法规变化对本协议进行修订，修订后的协议将在本应用后续版本中展示。\n2. 您在协议变更后继续使用本应用，即视为接受修订后的协议内容。\n\n【六、其他】\n1. 本协议的解释权及适用法律，以订立地法律为准；如条款部分无效，不影响其余条款的效力。\n2. 如您对本协议或本应用有任何疑问或建议，可通过应用内提供的反馈渠道与我们联系。\n3. 若您不同意本协议任何条款，请立即停止使用本应用。</string>
+
+    <!-- 弹窗 -->
+    <string name="remind_title">开拓者，该上车啦！</string>
+    <string name="remind_message">今日还未启动《崩坏：星穹铁道》\n列车即将发车，记得打卡哦～</string>
+    <string name="remind_launch">打开星穹铁道</string>
+    <string name="remind_snooze">稍后提醒</string>
+    <string name="remind_close">知道了</string>
+    <string name="remind_notification_title">开拓者，今日还未登录星穹铁道</string>
+    <string name="remind_notification_text">点击前往星穹铁道打卡吧</string>
+
+    <!-- 登录 -->
+    <string name="login_title">米游社登录</string>
+    <string name="login_hint">请在下方登录米游社，登录成功后自动捕获信息</string>
+    <string name="login_done">已完成登录</string>
+    <string name="login_back">返回</string>
+
+    <!-- 其他 -->
+    <string name="accessibility_service_desc">星铁打卡小助手无障碍保活辅助服务，仅用于提升后台存活率，不读取任何界面内容</string>
+    <string name="keep_alive_title">星铁打卡小助手运行中</string>
+    <string name="keep_alive_text">每日打卡守护已开启 · 正在保活</string>
+    <string name="no_permission_tip">权限不足，请在设置中开启</string>
+    <string name="settings_more_title">更多</string>
+    <string name="settings_more_entry">更多</string>
+    <string name="settings_more_entry_desc">设备指纹、Cookie 导入、权限配置</string>
+</resources>

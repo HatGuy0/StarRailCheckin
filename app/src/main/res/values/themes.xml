@@ -1,0 +1,62 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <style name="Theme.StarRailCheckin" parent="Theme.Material3.DayNight.NoActionBar">
+        <item name="colorPrimary">@color/anime_purple</item>
+        <item name="colorPrimaryVariant">@color/primary_variant</item>
+        <item name="colorOnPrimary">@color/white</item>
+        <item name="colorSecondary">@color/anime_cyan</item>
+        <item name="colorSecondaryVariant">@color/accent_dark</item>
+
+        <!-- 表面层次 -->
+        <item name="colorSurface">@color/surface_1_light</item>
+        <item name="colorOnSurface">@color/anime_text_primary</item>
+        <item name="colorSurfaceVariant">@color/surface_2_light</item>
+        <item name="colorOnSurfaceVariant">@color/anime_text_secondary</item>
+
+        <!-- 默认背景：跟随主题背景纯色（不再使用旧项目星海兜底图） -->
+        <item name="android:windowBackground">?android:colorBackground</item>
+        <item name="android:colorBackground">@color/anime_bg_mid</item>
+
+        <!-- 状态栏透明，沉浸式 -->
+        <item name="android:statusBarColor">@android:color/transparent</item>
+        <item name="android:navigationBarColor">@android:color/transparent</item>
+        <item name="android:windowTranslucentNavigation">true</item>
+
+        <!-- 全局控件强调 -->
+        <item name="colorControlHighlight">@color/ripple_light</item>
+        <item name="android:textColorPrimary">@color/anime_text_primary</item>
+        <item name="android:textColorSecondary">@color/anime_text_secondary</item>
+    </style>
+
+    <!-- 全玻璃透明覆盖 -->
+    <style name="Theme.StarRailCheckin.Translucent" parent="Theme.Material3.DayNight.NoActionBar">
+        <item name="android:windowIsTranslucent">true</item>
+        <item name="android:windowBackground">@android:color/transparent</item>
+        <item name="android:windowNoTitle">true</item>
+        <item name="android:windowLayoutInDisplayCutoutMode">shortEdges</item>
+        <item name="android:statusBarColor">@android:color/transparent</item>
+        <item name="android:navigationBarColor">@android:color/transparent</item>
+        <item name="colorPrimary">@color/anime_purple</item>
+    </style>
+
+    <!-- 提醒弹窗：透明全屏悬浮 -->
+    <style name="Theme.StarRailCheckin.RemindDialog" parent="Theme.Material3.DayNight.NoActionBar">
+        <item name="android:windowIsTranslucent">true</item>
+        <item name="android:windowBackground">@android:color/transparent</item>
+        <item name="android:windowNoTitle">true</item>
+        <item name="android:windowLayoutInDisplayCutoutMode">shortEdges</item>
+        <item name="android:statusBarColor">@android:color/transparent</item>
+        <item name="android:navigationBarColor">@android:color/transparent</item>
+        <item name="colorPrimary">@color/anime_purple</item>
+        <item name="android:windowAnimationStyle">@style/Animation.Anime.Dialog</item>
+    </style>
+
+    <!-- 通用弹窗（扫码登录等） -->
+    <style name="Theme.StarRailCheckin.Dialog" parent="Theme.Material3.DayNight.Dialog">
+        <item name="android:windowIsFloating">true</item>
+        <item name="android:windowBackground">@android:color/transparent</item>
+        <item name="android:windowNoTitle">true</item>
+        <item name="colorPrimary">@color/anime_purple</item>
+        <item name="android:windowAnimationStyle">@style/Animation.Anime.Dialog</item>
+    </style>
+</resources>

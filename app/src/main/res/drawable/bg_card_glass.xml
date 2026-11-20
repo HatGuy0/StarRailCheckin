@@ -1,0 +1,21 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- 二次元玻璃卡：外层柔光描边 + 内层渐变玻璃 -->
+<layer-list xmlns:android="http://schemas.android.com/apk/res/android">
+    <item>
+        <shape android:shape="rectangle">
+            <corners android:radius="@dimen/radius_l" />
+            <solid android:color="@color/anime_card_stroke_outer" />
+        </shape>
+    </item>
+    <item android:left="1.5dp" android:top="1.5dp" android:right="1.5dp" android:bottom="1.5dp">
+        <shape android:shape="rectangle">
+            <corners android:radius="@dimen/radius_l" />
+            <gradient
+                android:angle="315"
+                android:startColor="@color/anime_card_top"
+                android:centerColor="@color/anime_card_mid"
+                android:endColor="@color/anime_card_bottom" />
+            <stroke android:width="1dp" android:color="@color/anime_card_stroke" />
+        </shape>
+    </item>
+</layer-list>

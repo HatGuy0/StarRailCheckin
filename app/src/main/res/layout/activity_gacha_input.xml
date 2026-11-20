@@ -1,0 +1,42 @@
+<?xml version="1.0" encoding="utf-8"?>
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android" android:layout_width="match_parent" android:layout_height="match_parent" android:orientation="vertical" android:background="#F5F5FA" >
+
+    <androidx.appcompat.widget.Toolbar android:id="@+id/toolbar" xmlns:app="http://schemas.android.com/apk/res-auto" android:layout_width="match_parent" android:layout_height="?attr/actionBarSize" android:background="@android:color/transparent" app:title="跃迁抽卡分析" app:titleTextColor="@color/anime_text_primary" app:titleTextAppearance="@style/TextAppearance.Anime.Toolbar" />
+
+    <ScrollView android:layout_width="match_parent" android:layout_height="match_parent" android:fillViewport="true" >
+
+        <LinearLayout android:layout_width="match_parent" android:layout_height="wrap_content" android:orientation="vertical" android:padding="20dp" >
+
+            <!-- 气泡式输入框 -->
+            <FrameLayout android:layout_width="match_parent" android:layout_height="wrap_content" style="@style/Widget.Card.Glass" xmlns:app="http://schemas.android.com/apk/res-auto" >
+
+                <LinearLayout android:layout_width="match_parent" android:layout_height="wrap_content" android:orientation="vertical" android:padding="16dp" >
+
+                    <TextView android:id="@+id/tvGachaStatus" android:layout_width="match_parent" android:layout_height="wrap_content" android:text="粘贴游戏内跃迁记录链接，即可分析全部抽卡数据" android:textSize="13sp" android:textColor="@color/anime_text_secondary" />
+
+                    <com.google.android.material.textfield.TextInputLayout style="@style/Widget.EditText.Dark" android:id="@+id/tilGachaLink" android:layout_width="match_parent" android:layout_height="wrap_content" android:layout_marginTop="12dp" android:hint="请输入抽卡分析地址" >
+
+                        <com.google.android.material.textfield.TextInputEditText android:id="@+id/etGachaLink" android:layout_width="match_parent" android:layout_height="wrap_content" android:inputType="textVisiblePassword|textMultiLine" android:minLines="2" />
+                    </com.google.android.material.textfield.TextInputLayout>
+
+                    <androidx.appcompat.widget.AppCompatButton android:id="@+id/btnGachaPaste" style="@style/Widget.Button.Primary" android:layout_width="match_parent" android:layout_height="52dp" android:layout_marginTop="14dp" android:text="开始分析" />
+
+                    <androidx.appcompat.widget.AppCompatButton android:id="@+id/btnGachaAuto" style="@style/Widget.Button.Ghost" android:layout_width="match_parent" android:layout_height="48dp" android:layout_marginTop="8dp" android:text="一键拉取(已登录账号)" />
+                </LinearLayout>
+            </FrameLayout>
+
+            <TextView android:id="@+id/btnGachaHelp" android:layout_width="wrap_content" android:layout_height="wrap_content" android:layout_marginTop="12dp" android:text="如何获取抽卡链接？" android:textSize="13sp" android:padding="6dp" android:textColor="@color/anime_purple" />
+
+            <LinearLayout android:layout_width="match_parent" android:layout_height="wrap_content" android:layout_marginTop="16dp" android:orientation="horizontal" android:gravity="center_vertical" >
+                <LinearLayout android:layout_width="0dp" android:layout_height="wrap_content" android:layout_weight="1" android:gravity="center_vertical" android:orientation="horizontal"><View android:layout_width="4dp" android:layout_height="18dp" android:layout_marginEnd="8dp" android:background="@drawable/bg_accent_bar_cyan" /><TextView android:layout_width="wrap_content" android:layout_height="wrap_content" android:text="历史记录" android:textSize="15sp" android:textStyle="bold" android:textColor="@color/anime_text_primary" /></LinearLayout>
+                <TextView android:id="@+id/btnGachaExport" android:layout_width="wrap_content" android:layout_height="wrap_content" android:text="导出" android:textSize="12sp" android:padding="6dp" android:textColor="@color/anime_purple" />
+                <TextView android:id="@+id/btnGachaImport" android:layout_width="wrap_content" android:layout_height="wrap_content" android:text="导入" android:textSize="12sp" android:padding="6dp" android:textColor="@color/anime_purple" />
+                <TextView android:id="@+id/btnGachaHistoryManage" android:layout_width="wrap_content" android:layout_height="wrap_content" android:text="管理" android:textSize="12sp" android:padding="6dp" android:textColor="@color/anime_purple" />
+            </LinearLayout>
+
+            <LinearLayout android:id="@+id/gachaContainer" android:layout_width="match_parent" android:layout_height="wrap_content" android:orientation="vertical" />
+
+            <LinearLayout android:id="@+id/gachaHistoryList" android:layout_width="match_parent" android:layout_height="wrap_content" android:layout_marginTop="4dp" android:orientation="vertical" />
+        </LinearLayout>
+    </ScrollView>
+</LinearLayout>

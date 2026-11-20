@@ -1,0 +1,120 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!-- ================= 二次元星海玻璃组件样式 ================= -->
+
+    <!-- 玻璃拟态卡片：柔光描边 + 渐变玻璃 + 大圆角 -->
+    <style name="Widget.Card.Glass" parent="">
+        <item name="android:background">@drawable/bg_card_glass</item>
+    </style>
+
+    <!-- 悬浮层级卡片 -->
+    <style name="Widget.Card.Glass.Float" parent="Widget.Card.Glass">
+        <item name="android:elevation">@dimen/card_elevation_float</item>
+    </style>
+
+    <!-- 分组标题：二次元装饰 -->
+    <style name="Widget.SectionHeader" parent="">
+        <item name="android:paddingStart">@dimen/space_xs</item>
+        <item name="android:paddingEnd">@dimen/space_xs</item>
+        <item name="android:paddingBottom">@dimen/space_xs</item>
+        <item name="android:textColor">@color/anime_text_primary</item>
+        <item name="android:textSize">@dimen/text_section</item>
+        <item name="android:textStyle">bold</item>
+    </style>
+
+    <!-- 主按钮：星海渐变 + 高光描边 + 大圆角 -->
+    <style name="Widget.Button.Primary" parent="Widget.AppCompat.Button">
+        <item name="android:background">@drawable/bg_btn_gradient</item>
+        <item name="android:minHeight">@dimen/btn_height</item>
+        <item name="android:paddingStart">@dimen/space_l</item>
+        <item name="android:paddingEnd">@dimen/space_l</item>
+        <item name="android:textColor">@color/white</item>
+        <item name="android:textSize">@dimen/text_body</item>
+        <item name="android:textStyle">bold</item>
+        <item name="android:stateListAnimator">@null</item>
+        <item name="android:elevation">@dimen/card_elevation</item>
+        <item name="android:gravity">center</item>
+        <item name="android:letterSpacing">0.02</item>
+    </style>
+
+    <!-- 幽灵按钮：半透明玻璃 + 紫描边 -->
+    <style name="Widget.Button.Ghost" parent="Widget.AppCompat.Button">
+        <item name="android:background">@drawable/bg_btn_ghost</item>
+        <item name="android:minHeight">@dimen/btn_height</item>
+        <item name="android:paddingStart">@dimen/space_l</item>
+        <item name="android:paddingEnd">@dimen/space_l</item>
+        <item name="android:textColor">@color/anime_purple</item>
+        <item name="android:textSize">@dimen/text_body</item>
+        <item name="android:textStyle">bold</item>
+        <item name="android:stateListAnimator">@null</item>
+        <item name="android:gravity">center</item>
+    </style>
+
+    <!-- 小尺寸胶囊按钮（列表内操作） -->
+    <style name="Widget.Button.Pill" parent="Widget.AppCompat.Button">
+        <item name="android:background">@drawable/bg_btn_ghost</item>
+        <item name="android:minHeight">34dp</item>
+        <item name="android:minWidth">0dp</item>
+        <item name="android:paddingStart">@dimen/space_m</item>
+        <item name="android:paddingEnd">@dimen/space_m</item>
+        <item name="android:textColor">@color/anime_purple</item>
+        <item name="android:textSize">@dimen/text_caption</item>
+        <item name="android:textStyle">bold</item>
+        <item name="android:stateListAnimator">@null</item>
+        <item name="android:gravity">center</item>
+    </style>
+
+    <!-- 输入框 -->
+    <style name="Widget.EditText.Dark" parent="Widget.MaterialComponents.TextInputLayout.OutlinedBox">
+        <item name="boxStrokeColor">@color/anime_purple</item>
+        <item name="boxStrokeWidth">1.2dp</item>
+        <item name="boxStrokeWidthFocused">1.8dp</item>
+        <item name="hintTextColor">@color/anime_purple</item>
+        <item name="boxBackgroundColor">@color/anime_input_fill</item>
+        <item name="boxCornerRadiusTopStart">@dimen/radius_m</item>
+        <item name="boxCornerRadiusTopEnd">@dimen/radius_m</item>
+        <item name="boxCornerRadiusBottomStart">@dimen/radius_m</item>
+        <item name="boxCornerRadiusBottomEnd">@dimen/radius_m</item>
+    </style>
+
+    <!-- 列表条目容器 -->
+    <style name="Widget.Item.Row" parent="">
+        <item name="android:background">@drawable/bg_item_row</item>
+        <item name="android:paddingTop">@dimen/space_m</item>
+        <item name="android:paddingBottom">@dimen/space_m</item>
+        <item name="android:paddingStart">@dimen/space_m</item>
+        <item name="android:paddingEnd">@dimen/space_m</item>
+    </style>
+
+    <!-- 状态胶囊 / 标签 -->
+    <style name="Widget.Tag.Pill" parent="">
+        <item name="android:background">@drawable/bg_status_pill_ok</item>
+        <item name="android:paddingStart">@dimen/space_s</item>
+        <item name="android:paddingEnd">@dimen/space_s</item>
+        <item name="android:paddingTop">@dimen/space_xxs</item>
+        <item name="android:paddingBottom">@dimen/space_xxs</item>
+        <item name="android:textColor">@color/anime_purple</item>
+        <item name="android:textSize">@dimen/text_caption</item>
+        <item name="android:textStyle">bold</item>
+    </style>
+
+    <!-- ================= 页面/弹窗转场动画 ================= -->
+    <style name="Animation.Anime.Activity" parent="@android:style/Animation.Activity">
+        <item name="android:activityOpenEnterAnimation">@anim/fade_in</item>
+        <item name="android:activityOpenExitAnimation">@anim/fade_out</item>
+        <item name="android:activityCloseEnterAnimation">@anim/fade_in</item>
+        <item name="android:activityCloseExitAnimation">@anim/fade_out</item>
+    </style>
+
+    <style name="Animation.Anime.Dialog" parent="@android:style/Animation.Dialog">
+        <item name="android:windowEnterAnimation">@anim/slide_up_in</item>
+        <item name="android:windowExitAnimation">@anim/slide_bottom_out</item>
+    </style>
+
+    <!-- Toolbar 标题 -->
+    <style name="TextAppearance.Anime.Toolbar" parent="TextAppearance.Material3.TitleLarge">
+        <item name="android:textColor">@color/anime_text_primary</item>
+        <item name="android:textSize">20sp</item>
+        <item name="android:textStyle">bold</item>
+    </style>
+</resources>

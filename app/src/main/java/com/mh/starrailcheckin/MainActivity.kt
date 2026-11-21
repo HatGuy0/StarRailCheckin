@@ -69,6 +69,7 @@ import com.mh.starrailcheckin.network.UpdateChecker
 import com.mh.starrailcheckin.network.UpdateCheckResult
 import com.mh.starrailcheckin.network.RemoteRelease
 import com.mh.starrailcheckin.ui.about.AboutActivity
+import com.mh.starrailcheckin.ui.components.ReleaseNotesBlock
 import androidx.core.content.pm.PackageInfoCompat
 import top.yukonga.miuix.kmp.overlay.OverlayDialog
 import top.yukonga.miuix.kmp.basic.TextButton
@@ -363,13 +364,10 @@ fun AppMain() {
                         text = "新版本 ${rel.versionName} 已发布",
                         color = MiuixTheme.colorScheme.onSurface
                     )
-                    if (rel.releaseNotes.isNotBlank()) {
-                        Spacer(Modifier.height(8.dp))
-                        Text(
-                            text = rel.releaseNotes,
-                            color = MiuixTheme.colorScheme.onSurfaceSecondary
-                        )
-                    }
+                    ReleaseNotesBlock(
+                        notes = rel.releaseNotes,
+                        modifier = Modifier.padding(top = 8.dp)
+                    )
                     Spacer(Modifier.height(12.dp))
                     Row(
                         modifier = Modifier.fillMaxWidth(),

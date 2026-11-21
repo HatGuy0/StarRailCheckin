@@ -21,8 +21,8 @@ android {
         applicationId = "com.mh.starrailcheckin"
         minSdk = 26
         targetSdk = 36
-        versionCode = 71
-        versionName = "2.21"
+        versionCode = 72
+        versionName = "2.2-bate4"
     }
 
     signingConfigs {

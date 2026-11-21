@@ -61,6 +61,7 @@ import androidx.compose.material3.LinearProgressIndicator
 import java.io.File
 import com.mh.starrailcheckin.ui.components.AppCard
 import com.mh.starrailcheckin.ui.components.NavEventOwnerHost
+import com.mh.starrailcheckin.ui.components.ReleaseNotesBlock
 import com.mh.starrailcheckin.ui.profile.EnkaImageLoader
 import com.mh.starrailcheckin.ui.theme.DarkBackgroundGradient
 import com.mh.starrailcheckin.ui.theme.LightBackgroundGradient
@@ -379,14 +380,10 @@ private fun AboutScreen(onBack: () -> Unit) {
                             style = MiuixTheme.textStyles.title3,
                             fontWeight = FontWeight.Bold
                         )
-                        if (state.release.releaseNotes.isNotBlank()) {
-                            Spacer(Modifier.height(8.dp))
-                            Text(
-                                text = state.release.releaseNotes,
-                                style = MiuixTheme.textStyles.body2,
-                                color = MiuixTheme.colorScheme.onSurfaceSecondary
-                            )
-                        }
+                        ReleaseNotesBlock(
+                            notes = state.release.releaseNotes,
+                            modifier = Modifier.padding(top = 8.dp)
+                        )
                         if (state.release.apkSize > 0) {
                             Spacer(Modifier.height(8.dp))
                             Text(

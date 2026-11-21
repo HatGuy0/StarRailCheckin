@@ -8,4 +8,8 @@
     <external-files-path
         name="exports"
         path="exports/" />
+    <!-- 更新包下载目录 -->
+    <external-files-path
+        name="downloads"
+        path="downloads/" />
 </paths>

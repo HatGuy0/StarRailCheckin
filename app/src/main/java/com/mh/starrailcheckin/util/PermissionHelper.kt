@@ -88,6 +88,14 @@ object PermissionHelper {
         }
     }
 
+    // ---------- 安装未知应用（应用内更新） ----------
+    fun canInstallPackages(context: Context): Boolean =
+        context.packageManager.canRequestPackageInstalls()
+
+    /** 本应用「安装未知应用」权限设置页；部分 ROM 无该页时回退应用详情。 */
+    fun installSourcesSettingsIntent(context: Context): Intent =
+        Intent(Settings.ACTION_MANAGE_UNKNOWN_APP_SOURCES, Uri.parse("package:${context.packageName}"))
+
     // ---------- 精确闹钟（Android12+） ----------
     fun canScheduleExactAlarm(context: Context): Boolean {
         if (Build.VERSION.SDK_INT < 31) return true

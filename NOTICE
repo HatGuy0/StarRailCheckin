@@ -1,0 +1,84 @@
+星铁打卡小助手 (StarRailCheckin)
+Copyright 2026 mh梦虎 <hatguy514@163.com>
+
+本项目源码采用 Apache License 2.0 发布，许可证全文见 LICENSE。
+本 NOTICE 文件用于声明项目所使用的第三方素材、数据与开源组件的归属。
+除下列第三方内容外，本项目源码部分的版权归上述作者所有。
+
+================================================================================
+一、游戏素材与数据（著作权归原权利人）
+================================================================================
+
+本项目为《崩坏：星穹铁道》第三方辅助应用，与 HoYoverse / 米哈游无任何关联，
+亦未获得官方授权。
+
+仓库内随源码提供的角色、光锥、遗器、技能、奖励、元素、命途等图标及相关映射
+数据，其名称、形象、图标等相关权益归 HoYoverse / 上海米哈游天命科技有限公司
+及原权利人所有。本项目仅在非商业、技术学习交流场景下使用上述素材，不构成
+官方授权，亦不得用于商业用途。
+
+================================================================================
+二、第三方数据源与在线素材镜像
+================================================================================
+
+应用运行时通过以下公开在线源加载头像、立绘与补充数据，相关内容版权归各自
+上游项目与权利人所有；若上游在线源不可用，对应图片将回退为占位样式。
+
+1. Mar-7th/StarRailRes
+   https://github.com/Mar-7th/StarRailRes
+   在线图标 / 立绘镜像（jsDelivr、GitHub Raw 等分发渠道）。
+
+2. vizualabstract/StarRailStaticAPI
+   https://github.com/vizualabstract/StarRailStaticAPI
+   角色 / 光锥 / 遗器静态数据与图片。
+
+3. enka.network / mihomo.me
+   https://enka.network/
+   https://api.mihomo.me/
+   角色面板数据查询接口。
+
+4. yoimiya-kokomi/miao-plugin
+   https://github.com/yoimiya-kokomi/miao-plugin
+   遗器评分规则、词条与权重等数据参考（对应 assets 下 miao_*.json 与
+   weight.json）。
+
+5. 其他公开数据 / 参考站点
+   - fribbels/hsr-optimizer：https://fribbels.github.io/hsr-optimizer/
+   - StardB：https://stardb.gg/
+   - ScoreMyRelic：https://api.scoremyrelic.com/
+
+================================================================================
+三、第三方开源组件（协议以各仓库 LICENSE 为准）
+================================================================================
+
+下列开源组件被本项目直接依赖，均为 Apache-2.0 等宽松许可：
+
+- AndroidX（Android Open Source Project, Google Inc.）— Apache-2.0
+  https://developer.android.com/jetpack/androidx
+
+- Material Components for Android（Google）— Apache-2.0
+  https://github.com/material-components/material-components-android
+
+- Kyant0 Backdrop / Shapes（Kyant0）— Apache-2.0
+  https://github.com/Kyant0/AndroidLiquidGlass
+
+- Miuix KMP（compose-miuix-ui / yukonga）— Apache-2.0
+  https://github.com/compose-miuix-ui/miuix
+
+- OkHttp（Square）— Apache-2.0
+  https://github.com/square/okhttp
+
+- Kotlinx Coroutines（JetBrains）— Apache-2.0
+  https://github.com/Kotlin/kotlinx.coroutines
+
+- Kotlin Standard Library（JetBrains）— Apache-2.0
+  https://github.com/JetBrains/kotlin
+
+- ZXing（zxing）— Apache-2.0
+  https://github.com/zxing/zxing
+
+- uCrop（Yalantis）— Apache-2.0
+  https://github.com/Yalantis/uCrop
+
+- Onboarding Screen（ahmmedrejowan）— Apache-2.0
+  https://github.com/ahmmedrejowan/OnboardingScreen-JetpackCompose

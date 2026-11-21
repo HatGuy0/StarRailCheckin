@@ -63,7 +63,7 @@
 - uCrop（Apache-2.0）
 - Kyant0 Backdrop / Shapes
 
-详见应用内「关于 → 引用」页面。
+详见应用内「关于 → 引用」页面；第三方素材、数据与组件的逐条归属声明见 [NOTICE](./NOTICE)。
 
 ## 免责声明
 

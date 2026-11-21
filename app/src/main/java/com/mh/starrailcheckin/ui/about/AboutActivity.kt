@@ -43,8 +43,13 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.appcompat.app.AppCompatActivity
+import androidx.core.content.pm.PackageInfoCompat
 import com.mh.starrailcheckin.R
 import com.mh.starrailcheckin.network.BilibiliApi
+import com.mh.starrailcheckin.network.RemoteRelease
+import com.mh.starrailcheckin.network.UpdateCheckResult
+import com.mh.starrailcheckin.network.UpdateChecker
+import androidx.compose.material3.CircularProgressIndicator
 import com.mh.starrailcheckin.ui.components.AppCard
 import com.mh.starrailcheckin.ui.components.NavEventOwnerHost
 import com.mh.starrailcheckin.ui.profile.EnkaImageLoader
@@ -94,13 +99,17 @@ class AboutActivity : AppCompatActivity() {
 private fun AboutScreen(onBack: () -> Unit) {
     val context = LocalContext.current
     val dark = LocalAppDarkTheme.current
-    val versionName = runCatching {
-        context.packageManager.getPackageInfo(context.packageName, 0).versionName
-    }.getOrNull() ?: "2.1"
+    val packageInfo = runCatching {
+        context.packageManager.getPackageInfo(context.packageName, 0)
+    }.getOrNull()
+    val versionName = packageInfo?.versionName ?: "2.1"
+    val localVersionCode = packageInfo?.let { PackageInfoCompat.getLongVersionCode(it).toInt() } ?: 0
 
     var authorName by remember { mutableStateOf(AboutLinks.DEFAULT_AUTHOR_NAME) }
     var authorFace by remember { mutableStateOf("") }
     var showUpdate by remember { mutableStateOf(false) }
+    var updateState by remember { mutableStateOf<UpdateUiState>(UpdateUiState.Checking) }
+    var retryTick by remember { mutableStateOf(0) }
 
     // 读取本地缓存；缓存有效则直接用，否则 IO 线程拉取 B 站公开资料，失败回退本地。
     LaunchedEffect(Unit) {
@@ -122,12 +131,31 @@ private fun AboutScreen(onBack: () -> Unit) {
         }
     }
 
+    // 打开更新检查弹窗时拉取最新 Release；retryTick 变化时重新检查。
+    LaunchedEffect(showUpdate, retryTick) {
+        if (!showUpdate) return@LaunchedEffect
+        updateState = UpdateUiState.Checking
+        val result = withContext(Dispatchers.IO) {
+            UpdateChecker.check(localVersionCode, versionName)
+        }
+        updateState = when (result) {
+            is UpdateCheckResult.UpToDate -> UpdateUiState.UpToDate(result.localVersionName)
+            is UpdateCheckResult.HasUpdate -> UpdateUiState.HasUpdate(result.release)
+            is UpdateCheckResult.Failed -> UpdateUiState.Failed(result.message)
+        }
+    }
+
     fun openUrl(url: String) {
         runCatching {
             context.startActivity(Intent(Intent.ACTION_VIEW, Uri.parse(url)))
         }.onFailure {
             android.widget.Toast.makeText(context, "无法打开链接", android.widget.Toast.LENGTH_SHORT).show()
         }
+    }
+
+    fun openRelease(release: RemoteRelease) {
+        val url = release.apkUrl?.takeIf { it.isNotBlank() } ?: release.releaseUrl
+        openUrl(url)
     }
 
     fun copyGroupNumber() {
@@ -252,18 +280,114 @@ private fun AboutScreen(onBack: () -> Unit) {
             title = "检查更新",
             onDismissRequest = { showUpdate = false },
             content = {
-                Text(
-                    text = "当前版本：$versionName\n\n已是最新版本，后续将接入在线更新检查。",
-                    style = MiuixTheme.textStyles.body2
-                )
-                Spacer(Modifier.height(12.dp))
-                top.yukonga.miuix.kmp.basic.TextButton(
-                    text = "知道了",
-                    onClick = { showUpdate = false }
-                )
+                when (val state = updateState) {
+                    is UpdateUiState.Checking -> {
+                        Row(verticalAlignment = Alignment.CenterVertically) {
+                            CircularProgressIndicator(
+                                modifier = Modifier.size(20.dp),
+                                strokeWidth = 2.dp
+                            )
+                            Spacer(Modifier.width(12.dp))
+                            Text("正在检查新版本…", style = MiuixTheme.textStyles.body2)
+                        }
+                    }
+
+                    is UpdateUiState.UpToDate -> {
+                        Text(
+                            text = "当前版本：$versionName\n\n已是最新版本。",
+                            style = MiuixTheme.textStyles.body2
+                        )
+                        Spacer(Modifier.height(12.dp))
+                        Row(
+                            horizontalArrangement = Arrangement.End,
+                            modifier = Modifier.fillMaxWidth()
+                        ) {
+                            top.yukonga.miuix.kmp.basic.TextButton(
+                                text = "知道了",
+                                onClick = { showUpdate = false }
+                            )
+                        }
+                    }
+
+                    is UpdateUiState.HasUpdate -> {
+                        Text(
+                            text = "发现新版本 ${state.release.versionName}",
+                            style = MiuixTheme.textStyles.title3,
+                            fontWeight = FontWeight.Bold
+                        )
+                        if (state.release.releaseNotes.isNotBlank()) {
+                            Spacer(Modifier.height(8.dp))
+                            Text(
+                                text = state.release.releaseNotes,
+                                style = MiuixTheme.textStyles.body2,
+                                color = MiuixTheme.colorScheme.onSurfaceSecondary
+                            )
+                        }
+                        if (state.release.apkSize > 0) {
+                            Spacer(Modifier.height(8.dp))
+                            Text(
+                                text = "安装包大小：${formatApkSize(state.release.apkSize)}",
+                                style = MiuixTheme.textStyles.footnote1,
+                                color = MiuixTheme.colorScheme.onSurfaceSecondary
+                            )
+                        }
+                        Spacer(Modifier.height(12.dp))
+                        Row(
+                            horizontalArrangement = Arrangement.End,
+                            modifier = Modifier.fillMaxWidth()
+                        ) {
+                            top.yukonga.miuix.kmp.basic.TextButton(
+                                text = "关闭",
+                                onClick = { showUpdate = false }
+                            )
+                            Spacer(Modifier.width(8.dp))
+                            top.yukonga.miuix.kmp.basic.TextButton(
+                                text = "前往下载",
+                                onClick = { openRelease(state.release) }
+                            )
+                        }
+                    }
+
+                    is UpdateUiState.Failed -> {
+                        Text(
+                            text = "检查失败：${state.message}",
+                            style = MiuixTheme.textStyles.body2
+                        )
+                        Spacer(Modifier.height(12.dp))
+                        Row(
+                            horizontalArrangement = Arrangement.End,
+                            modifier = Modifier.fillMaxWidth()
+                        ) {
+                            top.yukonga.miuix.kmp.basic.TextButton(
+                                text = "关闭",
+                                onClick = { showUpdate = false }
+                            )
+                            Spacer(Modifier.width(8.dp))
+                            top.yukonga.miuix.kmp.basic.TextButton(
+                                text = "重试",
+                                onClick = { retryTick++ }
+                            )
+                        }
+                    }
+                }
             }
         )
     }
+}
+
+/** 更新弹窗的 UI 状态。 */
+private sealed interface UpdateUiState {
+    object Checking : UpdateUiState
+    data class UpToDate(val versionName: String) : UpdateUiState
+    data class HasUpdate(val release: RemoteRelease) : UpdateUiState
+    data class Failed(val message: String) : UpdateUiState
+}
+
+/** 字节数格式化为可读的安装包大小。 */
+private fun formatApkSize(bytes: Long): String = when {
+    bytes >= 1024 * 1024 -> String.format("%.1f MB", bytes / 1024.0 / 1024.0)
+    bytes >= 1024 -> "${bytes / 1024} KB"
+    else -> "$bytes B"
 }
 
 @Composable

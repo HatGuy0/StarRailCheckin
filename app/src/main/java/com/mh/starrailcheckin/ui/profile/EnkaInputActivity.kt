@@ -97,6 +97,7 @@ private fun EnkaInputScreen(onBack: () -> Unit) {
     var history by remember { mutableStateOf(EnkaHistory.list(context)) }
     var showManage by remember { mutableStateOf(false) }
     var showClearConfirm by remember { mutableStateOf(false) }
+    var pendingDelete by remember { mutableStateOf<EnkaHistory.Entry?>(null) }
     var showHelp by remember { mutableStateOf(false) }
     var cachedFallback by remember { mutableStateOf<EnkaHistory.Entry?>(null) }
 
@@ -294,42 +295,6 @@ private fun EnkaInputScreen(onBack: () -> Unit) {
                     )
                 }
             }
-
-            Spacer(Modifier.height(16.dp))
-            AppCard {
-                Column(modifier = Modifier.padding(vertical = 8.dp)) {
-                    if (history.isEmpty()) {
-                        Text(
-                            text = "暂无历史记录，成功查询后会自动保存角色快照，可离线回看",
-                            fontSize = 13.sp,
-                            color = MiuixTheme.colorScheme.onSurfaceVariantSummary,
-                            modifier = Modifier.padding(horizontal = 16.dp, vertical = 12.dp)
-                        )
-                    } else {
-                        history.forEach { entry ->
-                            val who = if (entry.nickname.isBlank()) "未知" else entry.nickname
-                            Row(
-                                modifier = Modifier
-                                    .fillMaxWidth()
-                                    .clickable { openShowcase(entry.rawJson) }
-                                    .padding(horizontal = 16.dp, vertical = 12.dp),
-                                horizontalArrangement = Arrangement.SpaceBetween
-                            ) {
-                                Text(
-                                    text = "UID ${entry.uid.ifBlank { "未知UID" }} · $who",
-                                    fontSize = 14.sp,
-                                    color = MiuixTheme.colorScheme.onSurface
-                                )
-                                Text(
-                                    text = entry.date,
-                                    fontSize = 12.sp,
-                                    color = MiuixTheme.colorScheme.onSurfaceVariantSummary
-                                )
-                            }
-                        }
-                    }
-                }
-            }
         }
         }
     }
@@ -365,29 +330,46 @@ private fun EnkaInputScreen(onBack: () -> Unit) {
             onDismissRequest = { showManage = false },
             content = {
                 Column {
-                    history.forEach { entry ->
-                        val who = if (entry.nickname.isBlank()) "未知" else entry.nickname
-                        Row(
-                            modifier = Modifier
-                                .fillMaxWidth()
-                                .clickable {
-                                    EnkaHistory.delete(context, entry.index)
-                                    refreshHistory()
-                                    if (history.isEmpty()) showManage = false
+                    if (history.isEmpty()) {
+                        Text(
+                            text = "暂无历史记录，成功查询后会自动保存角色快照",
+                            fontSize = 13.sp,
+                            color = MiuixTheme.colorScheme.onSurfaceVariantSummary,
+                            modifier = Modifier.padding(vertical = 12.dp)
+                        )
+                    } else {
+                        history.forEach { entry ->
+                            val who = if (entry.nickname.isBlank()) "未知" else entry.nickname
+                            Row(
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .clickable { openShowcase(entry.rawJson) }
+                                    .padding(vertical = 12.dp, horizontal = 4.dp),
+                                horizontalArrangement = Arrangement.SpaceBetween,
+                                verticalAlignment = Alignment.CenterVertically
+                            ) {
+                                Column(modifier = Modifier.weight(1f)) {
+                                    Text(
+                                        text = "UID ${entry.uid.ifBlank { "未知" }} · $who",
+                                        fontSize = 14.sp,
+                                        color = MiuixTheme.colorScheme.onSurface
+                                    )
+                                    Spacer(Modifier.height(2.dp))
+                                    Text(
+                                        text = entry.date,
+                                        fontSize = 12.sp,
+                                        color = MiuixTheme.colorScheme.onSurfaceVariantSummary
+                                    )
                                 }
-                                .padding(vertical = 12.dp, horizontal = 4.dp),
-                            horizontalArrangement = Arrangement.SpaceBetween
-                        ) {
-                            Text(
-                                text = "UID ${entry.uid.ifBlank { "未知" }} · $who · ${entry.date}",
-                                fontSize = 14.sp,
-                                color = MiuixTheme.colorScheme.onSurface
-                            )
-                            Text(
-                                text = "删除",
-                                fontSize = 13.sp,
-                                color = MiuixTheme.colorScheme.primary
-                            )
+                                Text(
+                                    text = "删除",
+                                    fontSize = 13.sp,
+                                    color = MiuixTheme.colorScheme.primary,
+                                    modifier = Modifier
+                                        .clickable { pendingDelete = entry }
+                                        .padding(horizontal = 10.dp, vertical = 6.dp)
+                                )
+                            }
                         }
                     }
                     Row(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
@@ -432,6 +414,40 @@ private fun EnkaInputScreen(onBack: () -> Unit) {
                             refreshHistory()
                             showClearConfirm = false
                             showManage = false
+                        },
+                        modifier = Modifier.weight(1f)
+                    )
+                }
+            }
+        )
+    }
+
+    // 单条删除二次确认
+    pendingDelete?.let { entry ->
+        val who = if (entry.nickname.isBlank()) "未知" else entry.nickname
+        OverlayDialog(
+            show = true,
+            title = "删除记录",
+            onDismissRequest = { pendingDelete = null },
+            content = {
+                Text(
+                    text = "确定删除 UID ${entry.uid.ifBlank { "未知" }} · $who 的查询记录？",
+                    fontSize = 14.sp,
+                    color = MiuixTheme.colorScheme.onSurface
+                )
+                Row(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
+                    TextButton(
+                        text = "取消",
+                        onClick = { pendingDelete = null },
+                        modifier = Modifier.weight(1f)
+                    )
+                    TextButton(
+                        text = "删除",
+                        onClick = {
+                            EnkaHistory.delete(context, entry.index)
+                            refreshHistory()
+                            pendingDelete = null
+                            if (history.isEmpty()) showManage = false
                         },
                         modifier = Modifier.weight(1f)
                     )

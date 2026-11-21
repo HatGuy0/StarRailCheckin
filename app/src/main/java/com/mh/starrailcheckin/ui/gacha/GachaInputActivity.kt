@@ -279,7 +279,7 @@ private fun GachaInputScreen(onBack: () -> Unit) {
                         Text("粘贴链接拉取")
                     }
                     Spacer(Modifier.height(8.dp))
-                    Row(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
+                    Row(horizontalArrangement = Arrangement.spacedBy(14.dp)) {
                         TextButton(
                             text = "使用帮助",
                             onClick = { showHelp() },
@@ -291,7 +291,8 @@ private fun GachaInputScreen(onBack: () -> Unit) {
                             modifier = Modifier.weight(1f)
                         )
                     }
-                    Row(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
+                    Spacer(Modifier.height(12.dp))
+                    Row(horizontalArrangement = Arrangement.spacedBy(14.dp)) {
                         TextButton(
                             text = "导出 UIGF",
                             onClick = { exportGachaHistory() },

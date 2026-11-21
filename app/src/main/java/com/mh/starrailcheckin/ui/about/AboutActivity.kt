@@ -82,6 +82,7 @@ import top.yukonga.miuix.kmp.theme.MiuixTheme
 object AboutLinks {
     const val AUTHOR_SPACE = BilibiliApi.SPACE_URL
     const val QQ_GROUP_NUMBER = "981703967"
+    const val REPO_URL = "https://github.com/HatGuy0/StarRailCheckin"
     const val DEFAULT_AUTHOR_NAME = "mh梦虎"
 }
 
@@ -231,10 +232,8 @@ private fun AboutScreen(onBack: () -> Unit) {
         modifier = Modifier
             .fillMaxSize()
             .background(Brush.verticalGradient(if (dark) DarkBackgroundGradient else LightBackgroundGradient))
-            .statusBarsPadding()
             .navigationBarsPadding()
             .verticalScroll(rememberScrollState())
-            .padding(16.dp)
     ) {
         TopAppBar(
             title = "关于",
@@ -250,6 +249,7 @@ private fun AboutScreen(onBack: () -> Unit) {
             }
         )
 
+        Column(modifier = Modifier.padding(horizontal = 16.dp)) {
         Spacer(modifier = Modifier.height(16.dp))
 
         // 头部：应用图标 + 名称 + 版本号（仿图 1）
@@ -316,6 +316,7 @@ private fun AboutScreen(onBack: () -> Unit) {
 
         // 功能入口列表
         AppCard(modifier = Modifier.fillMaxWidth()) {
+            AboutItem("项目地址", "GitHub 开源仓库") { openUrl(AboutLinks.REPO_URL) }
             AboutItem("引用", "查看开源组件") {
                 context.startActivity(Intent(context, OpenSourceActivity::class.java))
             }
@@ -333,6 +334,7 @@ private fun AboutScreen(onBack: () -> Unit) {
                 )
             }
             AboutItem("检查更新", "检查新版本") { showUpdate = true }
+        }
         }
     }
 

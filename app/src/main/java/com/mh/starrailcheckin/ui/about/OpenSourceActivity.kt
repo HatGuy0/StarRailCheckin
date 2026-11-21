@@ -110,10 +110,8 @@ private fun OpenSourceScreen(onBack: () -> Unit) {
         modifier = Modifier
             .fillMaxSize()
             .background(Brush.verticalGradient(if (dark) DarkBackgroundGradient else LightBackgroundGradient))
-            .statusBarsPadding()
             .navigationBarsPadding()
             .verticalScroll(rememberScrollState())
-            .padding(16.dp)
     ) {
         TopAppBar(
             title = "引用",
@@ -129,6 +127,7 @@ private fun OpenSourceScreen(onBack: () -> Unit) {
             }
         )
 
+        Column(modifier = Modifier.padding(horizontal = 16.dp)) {
         Spacer(modifier = Modifier.height(16.dp))
 
         AppCard(modifier = Modifier.fillMaxWidth()) {
@@ -193,6 +192,7 @@ private fun OpenSourceScreen(onBack: () -> Unit) {
                     )
                 }
             }
+        }
         }
     }
 }

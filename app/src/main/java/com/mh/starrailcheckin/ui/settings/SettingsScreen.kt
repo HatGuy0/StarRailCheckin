@@ -205,6 +205,8 @@ fun SettingsScreen(modifier: Modifier = Modifier, onMoreClick: () -> Unit = {}) 
     var remindMsgInput by remember { mutableStateOf("") }
     // 常驻保活开关
     var keepAlive by remember { mutableStateOf(Prefs.keepNotifyEnabled(context)) }
+    // 进入 App 自动检查更新
+    var autoUpdate by remember { mutableStateOf(Prefs.autoCheckUpdate(context)) }
     // 体力与派遣提醒
     var staminaNotify by remember { mutableStateOf(Prefs.staminaNotifyEnabled(context)) }
     var staminaFull by remember { mutableStateOf(Prefs.staminaFullNotify(context)) }
@@ -855,6 +857,15 @@ fun SettingsScreen(modifier: Modifier = Modifier, onMoreClick: () -> Unit = {}) 
         AppCard(
             modifier = Modifier.fillMaxWidth()
         ) {
+            SwitchPreference(
+                checked = autoUpdate,
+                onCheckedChange = {
+                    autoUpdate = it
+                    Prefs.setAutoCheckUpdate(context, it)
+                },
+                title = "自动检查更新",
+                summary = "进入 App 时后台检查是否有新版本"
+            )
             ArrowPreference("关于", summary = "应用信息、作者、协议与引用", onClick = {
                 context.startActivity(
                     android.content.Intent(

@@ -8,12 +8,17 @@ import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.layout.statusBarsPadding
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.layout.WindowInsets
 import androidx.compose.material3.Icon
 import androidx.compose.material3.Text
@@ -23,6 +28,7 @@ import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableIntStateOf
+import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
@@ -59,6 +65,16 @@ import com.mh.starrailcheckin.util.AppForeground
 import com.mh.starrailcheckin.util.CheckinHelper
 import com.mh.starrailcheckin.util.UsageStatsHelper
 import com.mh.starrailcheckin.network.MicaApi
+import com.mh.starrailcheckin.network.UpdateChecker
+import com.mh.starrailcheckin.network.UpdateCheckResult
+import com.mh.starrailcheckin.network.RemoteRelease
+import com.mh.starrailcheckin.ui.about.AboutActivity
+import androidx.core.content.pm.PackageInfoCompat
+import top.yukonga.miuix.kmp.overlay.OverlayDialog
+import top.yukonga.miuix.kmp.basic.TextButton
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.delay
+import kotlinx.coroutines.withContext
 
 class MainActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
@@ -151,6 +167,8 @@ fun AppMain() {
     val guideFinished by Prefs.getGuideFinished(context).collectAsState(initial = null)
     val amoledState by Prefs.getAmoledDark(context).collectAsState(initial = false)
     val amoled = amoledState ?: false
+    // 启动自动检查到的新版本（非空时弹更新提示）
+    var autoUpdateRelease by remember { mutableStateOf<RemoteRelease?>(null) }
 
     // 处理返回键：二级页返回主界面
     BackHandler(enabled = currentScreen != 0) {
@@ -162,6 +180,19 @@ fun AppMain() {
         if (guideFinished == false) {
             currentScreen = 4
         }
+    }
+
+    // 进入 App 后台自动检查更新（受设置页开关控制；引导页阶段不检查）
+    LaunchedEffect(guideFinished) {
+        if (guideFinished != true || !Prefs.autoCheckUpdate(context)) return@LaunchedEffect
+        val pi = runCatching {
+            context.packageManager.getPackageInfo(context.packageName, 0)
+        }.getOrNull()
+        val localCode = pi?.let { PackageInfoCompat.getLongVersionCode(it).toInt() } ?: 0
+        val localName = pi?.versionName ?: ""
+        delay(1500)
+        val result = withContext(Dispatchers.IO) { UpdateChecker.check(localCode, localName) }
+        if (result is UpdateCheckResult.HasUpdate) autoUpdateRelease = result.release
     }
 
     // 背景录制层：根渐变背景录进 backdrop；内容录制层：页面卡片/文字录进 contentBackdrop。
@@ -319,6 +350,40 @@ fun AppMain() {
             6 -> Box(modifier = Modifier.fillMaxSize().statusBarsPadding()) {
                 MoreScreen(onBack = { currentScreen = 0 })
             }
+        }
+
+        // 启动自动检查到新版本：弹窗提示，去更新跳关于页走完整下载安装流程
+        autoUpdateRelease?.let { rel ->
+            OverlayDialog(
+                show = true,
+                title = "发现新版本",
+                onDismissRequest = { autoUpdateRelease = null },
+                content = {
+                    Text(
+                        text = "新版本 ${rel.versionName} 已发布",
+                        color = MiuixTheme.colorScheme.onSurface
+                    )
+                    if (rel.releaseNotes.isNotBlank()) {
+                        Spacer(Modifier.height(8.dp))
+                        Text(
+                            text = rel.releaseNotes,
+                            color = MiuixTheme.colorScheme.onSurfaceSecondary
+                        )
+                    }
+                    Spacer(Modifier.height(12.dp))
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.End
+                    ) {
+                        TextButton(text = "暂不", onClick = { autoUpdateRelease = null })
+                        Spacer(Modifier.width(8.dp))
+                        TextButton(text = "去更新", onClick = {
+                            autoUpdateRelease = null
+                            context.startActivity(Intent(context, AboutActivity::class.java))
+                        })
+                    }
+                }
+            )
         }
     }
     }

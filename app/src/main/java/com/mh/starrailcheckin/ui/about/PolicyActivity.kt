@@ -195,10 +195,8 @@ private fun PolicyScreen(type: String, onBack: () -> Unit) {
         modifier = Modifier
             .fillMaxSize()
             .background(Brush.verticalGradient(if (dark) DarkBackgroundGradient else LightBackgroundGradient))
-            .statusBarsPadding()
             .navigationBarsPadding()
             .verticalScroll(rememberScrollState())
-            .padding(16.dp)
     ) {
         TopAppBar(
             title = title,
@@ -214,6 +212,7 @@ private fun PolicyScreen(type: String, onBack: () -> Unit) {
             }
         )
 
+        Column(modifier = Modifier.padding(horizontal = 16.dp)) {
         Spacer(modifier = Modifier.height(16.dp))
 
         AppCard(modifier = Modifier.fillMaxWidth()) {
@@ -241,6 +240,7 @@ private fun PolicyScreen(type: String, onBack: () -> Unit) {
                     color = MiuixTheme.colorScheme.onSurfaceSecondary
                 )
             }
+        }
         }
     }
 }

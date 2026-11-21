@@ -837,6 +837,11 @@ object Prefs {
     fun keepNotifyEnabled(c: Context): Boolean = sp(c).getBoolean(KEY_KEEP_NOTIFY, true)
     fun setKeepNotify(c: Context, v: Boolean) = sp(c).edit().putBoolean(KEY_KEEP_NOTIFY, v).apply()
 
+    // ---------- 进入 App 自动检查更新 ----------
+    private const val KEY_AUTO_CHECK_UPDATE = "auto_check_update"
+    fun autoCheckUpdate(c: Context): Boolean = sp(c).getBoolean(KEY_AUTO_CHECK_UPDATE, true)
+    fun setAutoCheckUpdate(c: Context, v: Boolean) = sp(c).edit().putBoolean(KEY_AUTO_CHECK_UPDATE, v).apply()
+
     // ---------- 后台存活心跳（用于留存状态自检：最近一次 Worker / 前台服务存活时刻） ----------
     private const val KEY_LAST_WORKER_HEARTBEAT = "last_worker_heartbeat_at"
     private const val KEY_LAST_FGS_HEARTBEAT = "last_fgs_heartbeat_at"

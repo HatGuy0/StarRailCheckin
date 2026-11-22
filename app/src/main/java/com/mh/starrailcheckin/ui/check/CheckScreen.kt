@@ -1,7 +1,7 @@
 package com.mh.starrailcheckin.ui.check
 
 import android.graphics.Bitmap
-import android.graphics.BitmapFactory
+import com.mh.starrailcheckin.util.BitmapSampler
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
@@ -39,10 +39,12 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.asImageBitmap
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import com.mh.starrailcheckin.R
 import com.mh.starrailcheckin.network.MicaApi
 import com.mh.starrailcheckin.network.MicaException
 import com.mh.starrailcheckin.network.SignInfo
@@ -50,6 +52,7 @@ import com.mh.starrailcheckin.ui.profile.EnkaImageLoader
 import com.mh.starrailcheckin.util.CheckinHelper
 import com.mh.starrailcheckin.util.Prefs
 import com.mh.starrailcheckin.util.SignHelper
+import com.mh.starrailcheckin.util.UiError
 import com.mh.starrailcheckin.util.UsageStatsHelper
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.delay
@@ -59,6 +62,8 @@ import java.text.SimpleDateFormat
 import java.util.Calendar
 import java.util.Locale
 import top.yukonga.miuix.kmp.basic.Button
+import top.yukonga.miuix.kmp.basic.Icon
+import top.yukonga.miuix.kmp.basic.IconButton
 import top.yukonga.miuix.kmp.basic.SpinnerEntry
 import top.yukonga.miuix.kmp.preference.OverlaySpinnerPreference
 import top.yukonga.miuix.kmp.preference.SwitchPreference
@@ -66,7 +71,9 @@ import com.mh.starrailcheckin.ui.components.AppCard
 import top.yukonga.miuix.kmp.basic.InfiniteProgressIndicator
 import top.yukonga.miuix.kmp.basic.LinearProgressIndicator
 import top.yukonga.miuix.kmp.basic.Text
+import top.yukonga.miuix.kmp.basic.TextButton
 import top.yukonga.miuix.kmp.basic.TextField
+import com.mh.starrailcheckin.ui.theme.LocalSuccessColor
 import top.yukonga.miuix.kmp.theme.MiuixTheme
 
 @Composable
@@ -106,7 +113,7 @@ fun CheckScreen(modifier: Modifier = Modifier) {
             }
             result.onSuccess { signInfo = it }
                 .onFailure { e ->
-                    signError = if (e is MicaException) e.message else (e.message ?: "签到信息获取失败")
+                    signError = UiError.message(e, "签到信息获取失败")
                 }
             signLoading = false
         }
@@ -123,8 +130,7 @@ fun CheckScreen(modifier: Modifier = Modifier) {
                     loadSignInfo()
                 }
                 .onFailure { e ->
-                    val msg = if (e is MicaException) e.message else (e.message ?: "签到失败")
-                    Toast.makeText(context, msg, Toast.LENGTH_SHORT).show()
+                    Toast.makeText(context, UiError.message(e, "签到失败"), Toast.LENGTH_SHORT).show()
                 }
             signing = false
         }
@@ -242,24 +248,25 @@ fun CheckScreen(modifier: Modifier = Modifier) {
                         Spacer(modifier = Modifier.width(10.dp))
                         Text("正在获取签到状态…", style = MiuixTheme.textStyles.body2, color = MiuixTheme.colorScheme.onSurfaceSecondary)
                     }
-                    signInfo != null -> SignBody(
-                        info = signInfo!!,
-                        signing = signing,
-                        onSign = { doSign() }
-                    )
-                    else -> {
-                        Text(
-                            text = signError ?: "签到数据不可用",
-                            style = MiuixTheme.textStyles.body2,
-                            color = MiuixTheme.colorScheme.onSurfaceSecondary
+                    signInfo != null -> signInfo?.let { data ->
+                        SignBody(
+                            info = data,
+                            signing = signing,
+                            onSign = { doSign() }
                         )
                     }
-                }
-
-                signError?.let { msg ->
-                    if (signInfo == null) {
-                        Spacer(modifier = Modifier.height(8.dp))
-                        Text(text = msg, style = MiuixTheme.textStyles.footnote1, color = MiuixTheme.colorScheme.error)
+                    else -> {
+                        Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                            Text(
+                                text = signError ?: "签到数据不可用",
+                                style = MiuixTheme.textStyles.body2,
+                                color = if (signError != null) MiuixTheme.colorScheme.error
+                                else MiuixTheme.colorScheme.onSurfaceSecondary
+                            )
+                            if (signError != null) {
+                                TextButton(text = "重试", onClick = { loadSignInfo(force = true) })
+                            }
+                        }
                     }
                 }
             }
@@ -333,34 +340,40 @@ fun CheckScreen(modifier: Modifier = Modifier) {
                     horizontalArrangement = Arrangement.SpaceBetween,
                     verticalAlignment = Alignment.CenterVertically
                 ) {
-                    Text(
-                        text = "<",
-                        style = MiuixTheme.textStyles.title1,
-                        modifier = Modifier.clickable {
-                            if (selectedMonth == 0) {
-                                selectedMonth = 11
-                                selectedYear--
-                            } else {
-                                selectedMonth--
-                            }
+                    IconButton(onClick = {
+                        if (selectedMonth == 0) {
+                            selectedMonth = 11
+                            selectedYear--
+                        } else {
+                            selectedMonth--
                         }
-                    )
+                    }) {
+                        Icon(
+                            painter = painterResource(R.drawable.ic_back),
+                            contentDescription = "上一月",
+                            modifier = Modifier.size(24.dp),
+                            tint = MiuixTheme.colorScheme.onSurface
+                        )
+                    }
                     Text(
                         text = "${selectedYear}年 ${selectedMonth + 1}月",
                         style = MiuixTheme.textStyles.title1
                     )
-                    Text(
-                        text = ">",
-                        style = MiuixTheme.textStyles.title1,
-                        modifier = Modifier.clickable {
-                            if (selectedMonth == 11) {
-                                selectedMonth = 0
-                                selectedYear++
-                            } else {
-                                selectedMonth++
-                            }
+                    IconButton(onClick = {
+                        if (selectedMonth == 11) {
+                            selectedMonth = 0
+                            selectedYear++
+                        } else {
+                            selectedMonth++
                         }
-                    )
+                    }) {
+                        Icon(
+                            painter = painterResource(R.drawable.ic_arrow_right),
+                            contentDescription = "下一月",
+                            modifier = Modifier.size(24.dp),
+                            tint = MiuixTheme.colorScheme.onSurface
+                        )
+                    }
                 }
 
                 Spacer(modifier = Modifier.height(16.dp))
@@ -803,7 +816,7 @@ private fun AwardIcon(
             val local = AWARD_ICON_ASSETS[name]
             val localBmp = if (local != null) {
                 runCatching {
-                    context.assets.open(local).use { BitmapFactory.decodeStream(it) }
+                    context.assets.open(local).use { BitmapSampler.decodeStream(it, 128) }
                 }.getOrNull()
             } else null
             localBmp ?: EnkaImageLoader.bitmapForUrl(context, iconUrl, maxEdge = 128)
@@ -831,12 +844,12 @@ private fun SignBody(info: SignInfo, signing: Boolean, onSign: () -> Unit) {
             Box(
                 modifier = Modifier
                     .clip(RoundedCornerShape(16.dp))
-                    .background(if (info.signed) Color(0xFFE8F5E9) else Color(0xFFFFEBEE))
+                    .background(if (info.signed) LocalSuccessColor.current.copy(alpha = 0.14f) else MiuixTheme.colorScheme.error.copy(alpha = 0.14f))
                     .padding(horizontal = 12.dp, vertical = 6.dp)
             ) {
                 Text(
                     text = if (info.signed) "✅ 今日已签到" else "❌ 今日未签到",
-                    color = if (info.signed) Color(0xFF4CAF50) else MiuixTheme.colorScheme.error,
+                    color = if (info.signed) LocalSuccessColor.current else MiuixTheme.colorScheme.error,
                     style = MiuixTheme.textStyles.body2
                 )
             }
@@ -930,7 +943,7 @@ private fun SignBody(info: SignInfo, signing: Boolean, onSign: () -> Unit) {
                             Spacer(modifier = Modifier.height(1.dp))
                             Text(
                                 text = award.name,
-                                fontSize = 8.sp,
+                                fontSize = 9.sp,
                                 maxLines = 1,
                                 overflow = TextOverflow.Ellipsis,
                                 color = tileColor

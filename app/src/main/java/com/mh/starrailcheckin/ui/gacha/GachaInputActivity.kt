@@ -16,11 +16,13 @@ import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.WindowInsets
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -90,14 +92,18 @@ private fun GachaInputScreen(onBack: () -> Unit) {
     var linkInput by remember { mutableStateOf("") }
     var status by remember { mutableStateOf("") }
     var loading by remember { mutableStateOf(false) }
-    var history by remember { mutableStateOf(GachaHistory.list(context)) }
+    var history by remember { mutableStateOf<List<GachaHistory.Entry>>(emptyList()) }
     var showManage by remember { mutableStateOf(false) }
     var showClearConfirm by remember { mutableStateOf(false) }
     var pendingExport by remember { mutableStateOf<GachaHistory.Entry?>(null) }
 
     fun refreshHistory() {
-        history = GachaHistory.list(context)
+        scope.launch {
+            history = withContext(Dispatchers.IO) { GachaHistory.list(context) }
+        }
     }
+
+    LaunchedEffect(Unit) { refreshHistory() }
 
     val importLauncher = rememberLauncherForActivityResult(
         ActivityResultContracts.OpenDocument()
@@ -242,6 +248,7 @@ private fun GachaInputScreen(onBack: () -> Unit) {
         modifier = Modifier
             .fillMaxSize()
             .background(MiuixTheme.colorScheme.background)
+            .navigationBarsPadding()
             .verticalScroll(rememberScrollState())
             .padding(bottom = 24.dp),
         verticalArrangement = Arrangement.Top

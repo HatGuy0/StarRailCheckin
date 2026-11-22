@@ -19,7 +19,6 @@ import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
-import androidx.compose.foundation.layout.statusBarsPadding
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
@@ -50,6 +49,7 @@ import com.mh.starrailcheckin.network.ChallengeModeInfo
 import com.mh.starrailcheckin.network.ChallengeNode
 import com.mh.starrailcheckin.network.MicaApi
 import com.mh.starrailcheckin.network.MicaException
+import com.mh.starrailcheckin.util.UiError
 import com.mh.starrailcheckin.ui.profile.EnkaImageLoader
 import com.mh.starrailcheckin.ui.profile.EnkaNameMap
 import com.mh.starrailcheckin.ui.components.AppCard
@@ -133,10 +133,7 @@ private fun ChallengeRecordsScreen(onBack: () -> Unit) {
                 if (selected == index) info = it
             }.onFailure { e ->
                 if (selected == index) {
-                    error = when (e) {
-                        is MicaException -> e.message
-                        else -> e.message ?: "${mode.tab} 查询失败"
-                    }
+                    error = UiError.message(e, "${mode.tab} 查询失败")
                 }
             }
             if (selected == index) loading = false
@@ -165,7 +162,6 @@ private fun ChallengeRecordsScreen(onBack: () -> Unit) {
         modifier = Modifier
             .fillMaxSize()
             .background(gradient)
-            .statusBarsPadding()
             .navigationBarsPadding()
     ) {
         TopAppBar(
@@ -228,11 +224,13 @@ private fun ChallengeRecordsScreen(onBack: () -> Unit) {
                 }
             }
 
-            info != null -> ChallengeCard(
-                title = modes[selected].reviewTitle,
-                info = info!!,
-                onRefresh = { load(force = true) }
-            )
+            info != null -> info?.let { data ->
+                ChallengeCard(
+                    title = modes[selected].reviewTitle,
+                    info = data,
+                    onRefresh = { load(force = true) }
+                )
+            }
         }
 
         Spacer(modifier = Modifier.height(24.dp))
@@ -435,7 +433,7 @@ private fun NodeLine(node: ChallengeNode) {
         if (node.roundNum > 0) {
             Text(
                 text = "${node.roundNum} 轮",
-                fontSize = 8.sp,
+                fontSize = 9.sp,
                 color = MiuixTheme.colorScheme.onSurfaceSecondary
             )
         }
@@ -471,7 +469,7 @@ private fun AvatarChip(a: ChallengeAvatar) {
             if (a.level > 0) {
                 Text(
                     text = "Lv.${a.level}",
-                    fontSize = 7.sp,
+                    fontSize = 8.sp,
                     color = Color.White,
                     modifier = Modifier
                         .align(Alignment.BottomStart)
@@ -482,7 +480,7 @@ private fun AvatarChip(a: ChallengeAvatar) {
         }
         Text(
             text = name,
-            fontSize = 7.sp,
+            fontSize = 9.sp,
             maxLines = 1,
             overflow = TextOverflow.Ellipsis,
             color = MiuixTheme.colorScheme.onSurfaceSecondary

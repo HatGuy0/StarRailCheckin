@@ -1,6 +1,7 @@
 package com.mh.starrailcheckin.ui.gacha
 
 import android.content.Context
+import com.mh.starrailcheckin.util.LogHelper
 import org.json.JSONArray
 import org.json.JSONObject
 import java.text.SimpleDateFormat
@@ -31,7 +32,9 @@ object GachaHistory {
     private fun writeAll(ctx: Context, arr: JSONArray) {
         try {
             file(ctx).writeText(arr.toString())
-        } catch (_: Exception) { }
+        } catch (e: Exception) {
+            LogHelper.e("GachaHistory", "写入抽卡历史快照失败", e)
+        }
     }
 
     /** 保存一条新快照（置顶）。 */

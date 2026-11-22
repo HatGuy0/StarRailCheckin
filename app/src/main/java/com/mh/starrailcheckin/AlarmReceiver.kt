@@ -3,10 +3,14 @@ package com.mh.starrailcheckin
 import android.content.BroadcastReceiver
 import android.content.Context
 import android.content.Intent
-import android.os.Build
 import android.os.PowerManager
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.SupervisorJob
+import kotlinx.coroutines.launch
 import com.mh.starrailcheckin.network.MicaApi
 import com.mh.starrailcheckin.util.AlarmHelper
+import com.mh.starrailcheckin.util.BackgroundRunGuard
 import com.mh.starrailcheckin.util.CheckinHelper
 import com.mh.starrailcheckin.util.CookieHealthMonitor
 import com.mh.starrailcheckin.util.GameUsage
@@ -15,7 +19,6 @@ import com.mh.starrailcheckin.util.LogHelper
 import com.mh.starrailcheckin.util.NotifyHelper
 import com.mh.starrailcheckin.util.Prefs
 import com.mh.starrailcheckin.util.RemindGate
-import com.mh.starrailcheckin.util.RemindSound
 import com.mh.starrailcheckin.util.SignHelper
 import com.mh.starrailcheckin.util.StaminaMonitor
 import com.mh.starrailcheckin.util.UsageStatsHelper
@@ -43,10 +46,14 @@ class AlarmReceiver : BroadcastReceiver() {
         // 后面所有可能耗时的 IPC / 网络 / 弹窗逻辑都放到后台线程执行，避免 ANR 丢广播。
         val pending = goAsync()
         val pm = context.getSystemService(Context.POWER_SERVICE) as PowerManager
+        // WakeLock 分级：联网长任务（周期兜底/基准固化/预热刷新/游戏校验）持锁 30s 覆盖一次往返；
+        // 弹窗 / 重排 / 兜底重试等短任务只做 IPC 与拉起载体，持锁 10s 即可，避免短任务占着 CPU 锁。
+        val longWake = intent.action in LONG_WAKE_ACTIONS
         val wl = pm.newWakeLock(PowerManager.PARTIAL_WAKE_LOCK, "StarRailCheckin:alarm")
-            .apply { setReferenceCounted(false); acquire(60_000) }
+            .apply { setReferenceCounted(false); acquire(if (longWake) WAKE_LOCK_LONG_MS else WAKE_LOCK_SHORT_MS) }
 
-        Thread {
+        val receiverScope = CoroutineScope(SupervisorJob() + Dispatchers.IO)
+        receiverScope.launch {
             try {
                 when (intent.action) {
                     // 提醒前 1 分钟：只预热游玩天数，不弹窗、不重排
@@ -82,10 +89,10 @@ class AlarmReceiver : BroadcastReceiver() {
             } catch (t: Throwable) {
                 LogHelper.e("Alarm", "检测任务异常", t)
             } finally {
-                runCatching { wl.release() }
+                runCatching { if (wl.isHeld) wl.release() }
                 runCatching { pending.finish() }
             }
-        }.start()
+        }
     }
 
     /** 周期兜底闹钟：依次跑签到 / 便笺 / Cookie 检查，跑完自排下一轮。 */
@@ -94,12 +101,18 @@ class AlarmReceiver : BroadcastReceiver() {
         Prefs.setWorkerHeartbeatAt(context, Prefs.TASK_SIGN, now)
         Prefs.setWorkerHeartbeatAt(context, Prefs.TASK_STAMINA, now)
         Prefs.setWorkerHeartbeatAt(context, Prefs.TASK_COOKIE, now)
-        runCatching { SignHelper.autoSignIfDue(context) }
-            .onFailure { LogHelper.e("Alarm", "兜底闹钟：签到检查失败", it) }
-        runCatching { StaminaMonitor.check(context) }
-            .onFailure { LogHelper.e("Alarm", "兜底闹钟：体力检查失败", it) }
-        runCatching { CookieHealthMonitor.checkIfDue(context) }
-            .onFailure { LogHelper.e("Alarm", "兜底闹钟：Cookie 检查失败", it) }
+        if (BackgroundRunGuard.tryAcquire(context, Prefs.TASK_SIGN)) {
+            runCatching { SignHelper.autoSignIfDue(context) }
+                .onFailure { LogHelper.e("Alarm", "兜底闹钟：签到检查失败", it) }
+        }
+        if (BackgroundRunGuard.tryAcquire(context, Prefs.TASK_STAMINA)) {
+            runCatching { StaminaMonitor.check(context) }
+                .onFailure { LogHelper.e("Alarm", "兜底闹钟：体力检查失败", it) }
+        }
+        if (BackgroundRunGuard.tryAcquire(context, Prefs.TASK_COOKIE)) {
+            runCatching { CookieHealthMonitor.checkIfDue(context) }
+                .onFailure { LogHelper.e("Alarm", "兜底闹钟：Cookie 检查失败", it) }
+        }
         // 保活服务死亡自愈
         KeepAliveHelper.ensureIfEnabled(context)
         AlarmHelper.schedulePeriodicTasksAlarm(context)
@@ -108,7 +121,9 @@ class AlarmReceiver : BroadcastReceiver() {
     /** 凌晨基准固化：force 刷新游玩天数并固化为今日基准；失败按 3:55 / 3:59 阶段重试。 */
     private fun refreshBaseline(context: Context) {
         val stage = Prefs.baselineStage(context)
-        val stats = runCatching { MicaApi.fetchPlayerStats(context, force = true) }.getOrNull()
+        val stats = runCatching { MicaApi.fetchPlayerStats(context, force = true) }
+            .onFailure { LogHelper.e("Alarm", "基准刷新异常 stage=$stage", it) }
+            .getOrNull()
         if (stats != null) {
             CheckinHelper.establishBaseline(context, stats.activeDays)
             LogHelper.i("Alarm", "基准固化成功 stage=$stage days=${stats.activeDays}")
@@ -130,7 +145,9 @@ class AlarmReceiver : BroadcastReceiver() {
         if (Prefs.checkinScheme(context) != 2) return
         val uid = Prefs.uid(context)
         val openedToday = UsageStatsHelper.getTodayGameUsage(context).opened
-        val stats = runCatching { MicaApi.fetchPlayerStats(context, force = true) }.getOrNull() ?: return
+        val stats = runCatching { MicaApi.fetchPlayerStats(context, force = true) }
+            .onFailure { LogHelper.e("Alarm", "提醒前预热刷新游玩天数异常", it) }
+            .getOrNull() ?: return
         Prefs.setProfileRefreshAt(context, System.currentTimeMillis())
         // 今天还没开过游戏 → 本次天数只可能来自历史同步，可安全抬高基线
         CheckinHelper.noteDaysFetched(context, stats.activeDays, openedToday)
@@ -139,6 +156,7 @@ class AlarmReceiver : BroadcastReceiver() {
             Prefs.setTodayChecked(context, true)
             Prefs.saveCheckHistory(context, Prefs.todayNaturalStr(), true)
             Prefs.setScheme2Checked(context)
+            Prefs.setLastClosedDay(context, stats.activeDays, Prefs.todayStr())
             NotifyHelper.cancelRemindNotification(context)
             LogHelper.i("Alarm", "提醒前预热：天数高于基线（基线=${Prefs.todayBaseline(context)}，当前=${stats.activeDays}），打卡成功")
         } else {
@@ -190,15 +208,14 @@ class AlarmReceiver : BroadcastReceiver() {
         // 1) 先启动前台保活服务，获取"后台启动 Activity"系统豁免
         runCatching { ensureKeepAliveService(context) }
             .onFailure { LogHelper.e("Alarm", "保活服务启动失败，弹窗可能受限", it) }
-        // 2) 声音 + 震动（弹窗载体也会接管，play() 内部先 stop 不会双响）
-        runCatching { RemindSound.play(context) }
-            .onFailure { LogHelper.e("Alarm", "提醒声音播放失败", it) }
-        // 3) 弹窗（前台=Activity，后台/锁屏=悬浮窗或Activity）——这一步失败也必须继续往下走；
+        // 2) 弹窗（前台=Activity，后台/锁屏=悬浮窗或Activity）。
+        //    声音/震动由真正上屏的载体（Activity onCreate / 悬浮窗渲染成功后）接管播放，
+        //    不在广播层提前响，避免"窗还没出来先响一通"；载体全失败时由兜底通知的系统音兜底。
         //    弹窗链路确认失败后由 fallbackDisplay 再发通知兜底，主链路不提前发全屏通知，
         //    避免通知 fullScreenIntent 与悬浮窗叠加成两个弹窗、各自残留 snooze。
         runCatching { RemindDialogActivity.launch(context, fromAlarm = true) }
             .onFailure { LogHelper.e("Alarm", "拉起提醒弹窗失败", it) }
-        // 4) 2 分钟后兜底重试（若仍未标记「今日已提醒」会自动补弹）
+        // 3) 2 分钟后兜底重试（若仍未标记「今日已提醒」会自动补弹）
         runCatching { AlarmHelper.scheduleRetry(context) }
             .onFailure { LogHelper.e("Alarm", "兜底重试注册失败", it) }
     }
@@ -209,13 +226,27 @@ class AlarmReceiver : BroadcastReceiver() {
      * 这是导致"到点不弹窗"的最常见原因。常驻通知开关仅控制是否长期驻留，提醒时必须临时拉起。
      */
     private fun ensureKeepAliveService(context: Context) {
-        val i = Intent(context, com.mh.starrailcheckin.service.KeepAliveService::class.java)
-        if (Build.VERSION.SDK_INT >= 26) context.startForegroundService(i) else context.startService(i)
+        // 走统一安全入口：后台受限会降级为通知兜底，不抛崩
+        com.mh.starrailcheckin.service.KeepAliveService.start(context)
         LogHelper.i("Alarm", "已启动保活服务（获取后台启动Activity豁免）")
     }
 
     private companion object {
         /** UsageStats 查询异常时的兜底：按「今日未打开游戏」处理，保证提醒不会被异常吞掉。 */
         val USAGE_FALLBACK = GameUsage(false, 0L, 0)
+
+        /** 联网长任务 WakeLock 上限（覆盖一次网络往返）。 */
+        const val WAKE_LOCK_LONG_MS = 30_000L
+
+        /** 弹窗 / IPC 短任务 WakeLock 上限。 */
+        const val WAKE_LOCK_SHORT_MS = 10_000L
+
+        /** 需要持长锁的联网类动作。 */
+        val LONG_WAKE_ACTIONS = setOf(
+            AlarmHelper.ACTION_PERIODIC_TASKS,
+            AlarmHelper.ACTION_BASELINE_REFRESH,
+            AlarmHelper.ACTION_PRE_REFRESH,
+            AlarmHelper.ACTION_GAME_OPEN_CHECK
+        )
     }
 }

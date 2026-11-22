@@ -34,8 +34,6 @@ class WelcomeActivity : AppCompatActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         enableEdgeToEdge()
-        window.addFlags(WindowManager.LayoutParams.FLAG_DRAWS_SYSTEM_BAR_BACKGROUNDS)
-        window.statusBarColor = android.graphics.Color.TRANSPARENT
 
         // 检查是否已经完成引导，如果完成了直接跳转到主界面
         if (com.mh.starrailcheckin.util.Prefs.isGuideFinished(this)) {

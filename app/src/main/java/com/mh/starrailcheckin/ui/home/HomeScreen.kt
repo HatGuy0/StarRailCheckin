@@ -30,7 +30,6 @@ import top.yukonga.miuix.kmp.overlay.OverlayDialog
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
-import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.unit.dp
 import android.widget.Toast
@@ -50,6 +49,7 @@ import java.util.concurrent.TimeUnit
 import com.mh.starrailcheckin.ui.components.AppCard
 import top.yukonga.miuix.kmp.basic.Switch
 import top.yukonga.miuix.kmp.basic.Text
+import com.mh.starrailcheckin.ui.theme.LocalSuccessColor
 import top.yukonga.miuix.kmp.theme.MiuixTheme
 
 @Composable
@@ -245,14 +245,14 @@ fun HomeScreen(modifier: Modifier = Modifier) {
                     modifier = Modifier
                         .clip(RoundedCornerShape(16.dp))
                         .background(
-                            if (todayCheckedIn) Color(0xFFE8F5E9)
-                            else Color(0xFFFFEBEE)
+                            if (todayCheckedIn) LocalSuccessColor.current.copy(alpha = 0.14f)
+                            else MiuixTheme.colorScheme.error.copy(alpha = 0.14f)
                         )
                         .padding(horizontal = 12.dp, vertical = 6.dp)
                 ) {
                     Text(
                         text = if (todayCheckedIn) "✅ 今日已打卡" else "❌ 今日未打卡",
-                        color = if (todayCheckedIn) Color(0xFF4CAF50) else MiuixTheme.colorScheme.error,
+                        color = if (todayCheckedIn) LocalSuccessColor.current else MiuixTheme.colorScheme.error,
                         style = MiuixTheme.textStyles.body2
                     )
                 }

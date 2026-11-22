@@ -1,6 +1,8 @@
 package com.mh.starrailcheckin.ui.profile
 
 import android.content.Context
+import com.mh.starrailcheckin.network.ApiHosts
+import com.mh.starrailcheckin.util.LogHelper
 import org.json.JSONArray
 import org.json.JSONObject
 import java.net.HttpURLConnection
@@ -63,28 +65,26 @@ object EnkaNameMap {
 
     // 远端角色/光锥字典（id → 名称），多源依次尝试；失败不阻塞，回退内置与缓存
     private val REMOTE_CHARACTERS = listOf(
-        "https://vizualabstract.github.io/StarRailStaticAPI/db/cn/characters.json"
+        "${ApiHosts.VIZUAL_BASE}/db/cn/characters.json"
     )
     private val REMOTE_LIGHT_CONES = listOf(
-        "https://vizualabstract.github.io/StarRailStaticAPI/db/cn/light_cones.json"
+        "${ApiHosts.VIZUAL_BASE}/db/cn/light_cones.json"
     )
     // 远端遗器词条 / 属性字典
-    private val REMOTE_MAIN_AFFIX = "https://vizualabstract.github.io/StarRailStaticAPI/db/cn/relic_main_affixes.json"
-    private val REMOTE_SUB_AFFIX = "https://vizualabstract.github.io/StarRailStaticAPI/db/cn/relic_sub_affixes.json"
-    private val REMOTE_PROPERTIES = "https://vizualabstract.github.io/StarRailStaticAPI/db/cn/properties.json"
+    private val REMOTE_MAIN_AFFIX = "${ApiHosts.VIZUAL_BASE}/db/cn/relic_main_affixes.json"
+    private val REMOTE_SUB_AFFIX = "${ApiHosts.VIZUAL_BASE}/db/cn/relic_sub_affixes.json"
+    private val REMOTE_PROPERTIES = "${ApiHosts.VIZUAL_BASE}/db/cn/properties.json"
     // 远端结构化数据表（StarRailRes 上游，多镜像依次尝试；拉取成功即覆盖本地缓存，跟随上游更新）
     private val SR_RES_BASES = listOf(
-        "https://cdn.jsdelivr.net/gh/Mar-7th/StarRailRes@master/index_min/cn/",
-        "https://gh-proxy.com/https://raw.githubusercontent.com/Mar-7th/StarRailRes/master/index_min/cn/",
-        "https://ghfast.top/https://raw.githubusercontent.com/Mar-7th/StarRailRes/master/index_min/cn/",
-        "https://raw.githubusercontent.com/Mar-7th/StarRailRes/master/index_min/cn/"
-    )
+        "${ApiHosts.JSDELIVERT_MAR7TH}/index_min/cn/"
+    ) + ApiHosts.GH_PROXIES.map { "${it}${ApiHosts.GITHUB_RAW_MAR7TH}/index_min/cn/" } +
+        listOf("${ApiHosts.GITHUB_RAW_MAR7TH}/index_min/cn/")
     private fun srResUrls(file: String) = SR_RES_BASES.map { it + file }
     private val REMOTE_PROMOTIONS = srResUrls("character_promotions.json")
     private val REMOTE_SKILL_TREES = srResUrls("character_skill_trees.json")
     private val REMOTE_LC_PROMOTIONS = srResUrls("light_cone_promotions.json")
     // 远端遗器评分角色权重表（miao-plugin 上游 JS，按角色名补缺合并）
-    private val REMOTE_WEIGHTS = "https://raw.githubusercontent.com/yoimiya-kokomi/miao-plugin/master/resources/meta-sr/artifact/artis-mark.js"
+    private val REMOTE_WEIGHTS = "${ApiHosts.GITHUB_RAW_MIAO}/resources/meta-sr/artifact/artis-mark.js"
 
     @Synchronized
     fun load(ctx: Context) {
@@ -284,6 +284,9 @@ object EnkaNameMap {
     /** 角色稀有度（4/5星），接口未返回时用本地字典兜底。 */
     fun charRarity(id: Int): Int = charMeta[id.toString()]?.optInt("rarity", 0) ?: 0
 
+    /** 大招能量上限（max_sp，如 100/120/130/140），缺省返回 0。 */
+    fun charMaxSp(id: Int): Int = charMeta[id.toString()]?.optInt("max_sp", 0) ?: 0
+
     /** 光锥稀有度（3/4/5星），读内置字典，缺省按 4 星。 */
     fun lcRarity(id: Int): Int = lcRarityMap[id.toString()] ?: 4
 
@@ -315,7 +318,7 @@ object EnkaNameMap {
             subAffixes?.let { out.put("sub", it) }
             properties?.let { out.put("props", it) }
             java.io.File(ctx.filesDir, AFFIX_CACHE_FILE).writeText(out.toString())
-        }
+        }.onFailure { LogHelper.e("EnkaNameMap", "持久化副词条缓存失败", it) }
     }
 
     private fun readStructCache(ctx: Context): JSONObject? {
@@ -333,7 +336,7 @@ object EnkaNameMap {
             lightConePromotions?.let { out.put("lc_promotions", it) }
             relicWeights?.let { out.put("weights", it) }
             java.io.File(ctx.filesDir, STRUCT_CACHE_FILE).writeText(out.toString())
-        }
+        }.onFailure { LogHelper.e("EnkaNameMap", "持久化面板结构缓存失败", it) }
     }
 
     /** 把 extra 中 base 缺失的键并入 base；本地已有条目优先，不被远端覆盖（权重表用）。 */
@@ -373,7 +376,7 @@ object EnkaNameMap {
             out.put("characters", JSONObject(characters))
             out.put("light_cones", JSONObject(lightCones))
             java.io.File(ctx.filesDir, CACHE_FILE).writeText(out.toString())
-        }
+        }.onFailure { LogHelper.e("EnkaNameMap", "持久化名称映射缓存失败", it) }
     }
 
     private fun fetchNameMap(urls: List<String>): Map<String, String> {
@@ -397,7 +400,9 @@ object EnkaNameMap {
                     if (name.isNotBlank()) m[k] = name
                 }
                 if (m.isNotEmpty()) return m
-            } catch (_: Exception) { }
+            } catch (_: Exception) {
+                LogHelper.w("EnkaNameMap", "远端名称字典解析失败，切换下一镜像")
+            }
         }
         return emptyMap()
     }

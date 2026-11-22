@@ -1,7 +1,8 @@
 package com.mh.starrailcheckin.ui.profile
 
 import android.graphics.Bitmap
-import android.graphics.BitmapFactory
+import com.mh.starrailcheckin.network.ApiHosts
+import com.mh.starrailcheckin.util.BitmapSampler
 import android.widget.Toast
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
@@ -60,6 +61,7 @@ import com.mh.starrailcheckin.network.UserInfo
 import com.mh.starrailcheckin.util.CheckinHelper
 import com.mh.starrailcheckin.util.CropHelper
 import com.mh.starrailcheckin.util.Prefs
+import com.mh.starrailcheckin.util.UiError
 import com.mh.starrailcheckin.util.UsageStatsHelper
 import androidx.activity.compose.rememberLauncherForActivityResult
 import kotlinx.coroutines.Dispatchers
@@ -150,7 +152,7 @@ fun ProfileScreen(
         customBmp = withContext(Dispatchers.IO) {
             runCatching {
                 val f = customPath?.let { File(it) }
-                if (f != null && f.exists()) BitmapFactory.decodeFile(f.absolutePath) else null
+                if (f != null && f.exists()) BitmapSampler.decodeFile(f.absolutePath, 256) else null
             }.getOrNull()
         }
     }
@@ -213,7 +215,7 @@ fun ProfileScreen(
                 .put("rogueMax", info.rogueMax)
                 .toString()
         }.getOrNull() ?: return
-        Prefs.setStaminaCache(context, json, uid)
+        Prefs.setStaminaCache(context, json)
     }
 
     /** 只读本地资料：昵称/头像/UID 来自登录时写入的 Prefs，导入 Cookie 后不再刷新。 */
@@ -272,6 +274,7 @@ fun ProfileScreen(
                     }
                     .onFailure { e -> staminaError = staminaMessage(e) }
                 Prefs.setProfileRefreshAt(context, System.currentTimeMillis())
+                if (uid.isNotBlank()) Prefs.setProfileLastUid(context, uid)
             }
             staminaLoading = false
         }
@@ -279,11 +282,13 @@ fun ProfileScreen(
 
     LaunchedEffect(reload) {
         loadLocalProfile()
-        // 仅切换账号（缓存 UID 不一致）时强制拉一次；
+        // 仅切换账号（上次资料归属 UID 与当前不一致）时强制拉一次；
         // 普通重进 / 首次进入 都只读本地缓存不联网（刷新仅由手动按钮触发或 Worker 检测到游戏打开触发）
-        val switchedAccount = Prefs.staminaCacheUid(context).isNotBlank() &&
-            Prefs.staminaCacheUid(context) != Prefs.uid(context)
+        val currentUid = Prefs.uid(context)
+        val switchedAccount = Prefs.profileLastUid(context).isNotBlank() &&
+            Prefs.profileLastUid(context) != currentUid
         if (switchedAccount) refreshProfileData(force = true)
+        else if (currentUid.isNotBlank()) Prefs.setProfileLastUid(context, currentUid)
     }
 
     // 从多账号页/登录页返回时只同步本地资料，不发起网络刷新
@@ -311,18 +316,19 @@ fun ProfileScreen(
             val cacheFile = File(context.filesDir, "avatar_remote.img")
             // 同一 URL 已有本地缓存：直接解码，不重复下载（导入 Cookie 后头像不再刷新）
             if (cacheFile.exists() && Prefs.remoteAvatarCachedUrl(context) == avatarUrl) {
-                val cached = runCatching { BitmapFactory.decodeFile(cacheFile.absolutePath) }.getOrNull()
+                val cached = runCatching { BitmapSampler.decodeFile(cacheFile.absolutePath, 256) }.getOrNull()
                 if (cached != null) return@withContext cached
             }
             runCatching {
                 val req = Request.Builder().url(avatarUrl)
                     .header("User-Agent", "Mozilla/5.0")
-                    .header("Referer", "https://bbs.mihoyo.com/")
+                    .header("Referer", "${ApiHosts.BBS_MIHOYO}/")
                     .header("Cookie", Prefs.cookie(context))
                     .get().build()
                 avatarClient.newCall(req).execute().use { resp ->
-                    if (!resp.isSuccessful) null
-                    else BitmapFactory.decodeStream(resp.body?.byteStream())
+                    val body = resp.body
+                    if (!resp.isSuccessful || body == null) null
+                    else BitmapSampler.decodeByteArray(body.bytes(), 256)
                 }
             }.getOrNull()?.also { bmp ->
                 runCatching {
@@ -360,11 +366,7 @@ fun ProfileScreen(
                 stats = s
                 playDays = s.activeDays
             }.onFailure { e ->
-                val msg = when (e) {
-                    is MicaException -> e.message ?: "刷新失败"
-                    else -> e.message ?: "网络异常，请稍后重试"
-                }
-                Toast.makeText(context, "统计刷新失败：$msg", Toast.LENGTH_SHORT).show()
+                Toast.makeText(context, "统计刷新失败：${UiError.message(e, "刷新失败")}", Toast.LENGTH_SHORT).show()
             }
         }
     }
@@ -841,7 +843,7 @@ private fun staminaMessage(e: Throwable): String {
             10041, 10045 -> "接口风控限制，暂无法获取实时开拓力（可在游戏内查看）"
             else -> MicaApi.retcodeMessage(e.retcode).ifBlank { e.message ?: "体力刷新失败" }
         }
-        else -> e.message ?: "体力刷新失败"
+        else -> UiError.message(e, "体力刷新失败")
     }
 }
 

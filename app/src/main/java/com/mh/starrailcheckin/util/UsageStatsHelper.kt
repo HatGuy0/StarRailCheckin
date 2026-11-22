@@ -75,6 +75,7 @@ object UsageStatsHelper {
     // 会话合并阈值：两次前台事件间隔小于该值视为同一段会话
     private const val MERGE_GAP_MS = 60_000L
 
+    @Suppress("DEPRECATION") // AppOps 权限检查在 UsageStats 场景暂无等价新 API
     fun hasUsageAccess(context: Context): Boolean {
         val appOps = context.getSystemService(Context.APP_OPS_SERVICE) as android.app.AppOpsManager
         val mode = if (android.os.Build.VERSION.SDK_INT >= 29) {
@@ -110,6 +111,7 @@ object UsageStatsHelper {
      * 今日打卡判断（核心链路：闹钟触发后重新查询）
      * 判定规则：当日0点至当前时间的星穹铁道前台时长>0 或 启动次数>0 → 今日已打开
      */
+    @Suppress("DEPRECATION") // MOVE_TO_FOREGROUND 前台事件类型常量暂无替代
     fun getTodayGameUsage(context: Context): GameUsage {
         if (!hasUsageAccess(context)) {
             LogHelper.w("UsageStats", "无应用使用记录权限，无法查询")
@@ -180,6 +182,7 @@ object UsageStatsHelper {
      * 返回 0 表示查询失败或没有任何打开记录。
      * Worker 每 15 分钟用它对比 Prefs.lastGameOpenAt，判断"有没有新的打开事件"。
      */
+    @Suppress("DEPRECATION") // MOVE_TO_FOREGROUND 前台事件类型常量暂无替代
     fun lastGameForegroundAt(context: Context, lookbackMs: Long = 24 * 60 * 60 * 1000L): Long {
         if (!hasUsageAccess(context)) return 0L
         val end = System.currentTimeMillis()

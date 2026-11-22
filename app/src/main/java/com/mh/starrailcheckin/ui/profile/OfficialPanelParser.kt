@@ -141,7 +141,7 @@ internal object OfficialPanelParser {
                 if (level in intArrayOf(20, 30, 40, 50, 60, 70)) charPromotes += promote + 1
                 val weaponPromotes = when {
                     weaponData != null -> mutableListOf(weaponPromote ?: 0).also { list ->
-                        val weaponLevel = equip?.optInt("level", 1) ?: 1
+                        val weaponLevel = equip.optInt("level", 1)
                         if (weaponLevel in intArrayOf(20, 30, 40, 50, 60, 70)) list += (weaponPromote ?: 0) + 1
                     }
                     else -> mutableListOf<Int?>(null)
@@ -153,7 +153,7 @@ internal object OfficialPanelParser {
                     val charHp = characterAttr(character, level, charCandidate)["hp"] ?: continue
                     for (weaponCandidate in weaponPromotes) {
                         val weaponHp = if (weaponData != null && weaponCandidate != null) {
-                            weaponAttr(weaponData, equip?.optInt("level", 1) ?: 1, weaponCandidate)["hp"] ?: 0.0
+                            weaponAttr(weaponData, equip.optInt("level", 1), weaponCandidate)["hp"] ?: 0.0
                         } else 0.0
                         val diff = abs(baseHp - charHp - weaponHp)
                         if (diff < minDiff) {

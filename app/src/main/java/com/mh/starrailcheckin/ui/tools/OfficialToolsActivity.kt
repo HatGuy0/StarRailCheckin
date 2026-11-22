@@ -32,6 +32,7 @@ import androidx.core.view.WindowCompat
 import androidx.core.view.WindowInsetsCompat
 import androidx.core.view.WindowInsetsControllerCompat
 import com.mh.starrailcheckin.R
+import com.mh.starrailcheckin.network.ApiHosts
 import com.mh.starrailcheckin.util.Prefs
 
 /**
@@ -48,9 +49,9 @@ class OfficialToolsActivity : AppCompatActivity() {
 
     companion object {
         private const val TOOL_URL =
-            "https://act.mihoyo.com/sr/event/cultivation-tool/index.html" +
+            "${ApiHosts.ACT}/sr/event/cultivation-tool/index.html" +
                 "?lang=zh-cn&mhy_presentation_style=fullscreen&mhy_landscape=true&plat_type=pc"
-        private const val REFERER = "https://www.mihoyo.com/"
+        private const val REFERER = "${ApiHosts.WWW_MIHOYO}/"
         private const val UA =
             "Mozilla/5.0 (Linux; Android 13; SM-X700) AppleWebKit/537.36 " +
                 "(KHTML, like Gecko) Chrome/126.0.0.0 Safari/537.36"
@@ -105,22 +106,15 @@ class OfficialToolsActivity : AppCompatActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
 
+        // edge-to-edge：内容铺满系统栏；系统栏由 hideSystemUi() 经 WindowInsetsController 隐藏，
+        // 隐藏状态下无需再设置栏色与对比度强制开关。
         WindowCompat.setDecorFitsSystemWindows(window, false)
-        window.addFlags(
-            WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON or
-                WindowManager.LayoutParams.FLAG_FULLSCREEN
-        )
-        window.statusBarColor = Color.TRANSPARENT
-        window.navigationBarColor = Color.TRANSPARENT
+        window.addFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON)
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.P) {
             window.attributes = window.attributes.apply {
                 layoutInDisplayCutoutMode =
                     WindowManager.LayoutParams.LAYOUT_IN_DISPLAY_CUTOUT_MODE_SHORT_EDGES
             }
-        }
-        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
-            window.isStatusBarContrastEnforced = false
-            window.isNavigationBarContrastEnforced = false
         }
         hideSystemUi()
 
@@ -293,7 +287,6 @@ class OfficialToolsActivity : AppCompatActivity() {
         with(wv.settings) {
             javaScriptEnabled = true
             domStorageEnabled = true
-            databaseEnabled = true
             useWideViewPort = true
             loadWithOverviewMode = false
             builtInZoomControls = false

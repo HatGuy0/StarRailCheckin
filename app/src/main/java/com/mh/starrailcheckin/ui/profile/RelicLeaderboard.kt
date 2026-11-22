@@ -1,5 +1,6 @@
 package com.mh.starrailcheckin.ui.profile
 
+import com.mh.starrailcheckin.network.ApiHosts
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 import org.json.JSONObject
@@ -19,7 +20,7 @@ import java.util.TimeZone
  * 本地评分与榜单同为遗器 RS 口径，可直接插入排序估算名次；接口失败时由 UI 兜底。
  */
 object RelicLeaderboard {
-    private const val BASE = "https://api.scoremyrelic.com/api/leaderboards"
+    private const val BASE = ApiHosts.SCOREMYRELIC_BASE
     private const val PAGE_SIZE = 50
     private const val MAX_PAGE_REQUESTS = 12
 

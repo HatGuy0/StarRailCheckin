@@ -2,6 +2,7 @@ package com.mh.starrailcheckin.ui.profile
 
 import android.content.Context
 import android.content.Intent
+import com.mh.starrailcheckin.network.ApiHosts
 import android.os.Bundle
 import android.widget.Toast
 import androidx.activity.compose.setContent
@@ -94,20 +95,23 @@ private fun EnkaInputScreen(onBack: () -> Unit) {
     var uidInput by remember { mutableStateOf("") }
     var status by remember { mutableStateOf("") }
     var loading by remember { mutableStateOf(false) }
-    var history by remember { mutableStateOf(EnkaHistory.list(context)) }
+    var history by remember { mutableStateOf<List<EnkaHistory.Entry>>(emptyList()) }
     var showManage by remember { mutableStateOf(false) }
     var showClearConfirm by remember { mutableStateOf(false) }
     var pendingDelete by remember { mutableStateOf<EnkaHistory.Entry?>(null) }
     var showHelp by remember { mutableStateOf(false) }
     var cachedFallback by remember { mutableStateOf<EnkaHistory.Entry?>(null) }
 
-    // 回填上次查询的 UID
-    LaunchedEffect(Unit) {
-        uidInput = context.getSharedPreferences("enka_prefs", Context.MODE_PRIVATE).getString("last_uid", "") ?: ""
+    fun refreshHistory() {
+        scope.launch {
+            history = withContext(Dispatchers.IO) { EnkaHistory.list(context) }
+        }
     }
 
-    fun refreshHistory() {
-        history = EnkaHistory.list(context)
+    // 回填上次查询的 UID，并异步加载历史快照（文件读取放 IO 线程）
+    LaunchedEffect(Unit) {
+        uidInput = context.getSharedPreferences("enka_prefs", Context.MODE_PRIVATE).getString("last_uid", "") ?: ""
+        refreshHistory()
     }
 
     fun openShowcase(rawJson: String) {
@@ -122,7 +126,7 @@ private fun EnkaInputScreen(onBack: () -> Unit) {
 
     fun queryEnka() {
         val uid = uidInput.trim()
-        if (uid.length < 9) {
+        if (!uid.matches(Regex("^[0-9]{9}$"))) {
             status = "请输入9位数字UID"
             return
         }
@@ -151,7 +155,9 @@ private fun EnkaInputScreen(onBack: () -> Unit) {
                 LogHelper.e("Enka", "查询失败", it)
                 status = mapEnkaError(it)
                 // 联网失败时，若该 UID 有历史快照，允许回退查看缓存
-                val cached = EnkaHistory.list(context).firstOrNull { e -> e.uid == uid }
+                val cached = withContext(Dispatchers.IO) {
+                    EnkaHistory.list(context).firstOrNull { e -> e.uid == uid }
+                }
                 if (cached != null) cachedFallback = cached
                 null
             }
@@ -501,10 +507,10 @@ private suspend fun fetchEnka(ctx: Context, uid: String): EnkaResult {
         .readTimeout(30, java.util.concurrent.TimeUnit.SECONDS)
         .build()
     val req = okhttp3.Request.Builder()
-        .url("https://api.mihomo.me/sr_info_parsed/$uid?lang=cn")
+        .url("${ApiHosts.MIHOMO_API}/sr_info_parsed/$uid?lang=cn")
         .header("User-Agent", "Mozilla/5.0 (Linux; Android 13) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/108.0.5359.128 Mobile Safari/537.36")
         .header("Accept", "application/json, text/plain, */*")
-        .header("Referer", "https://enka.network/")
+        .header("Referer", ApiHosts.ENKA_REFERER)
         .get().build()
     return client.newCall(req).execute().use { resp ->
         val body = resp.body?.string().orEmpty()
@@ -513,6 +519,7 @@ private suspend fun fetchEnka(ctx: Context, uid: String): EnkaResult {
         val json = try {
             JSONObject(body)
         } catch (e: Exception) {
+            LogHelper.e("Enka", "parsed 面板 JSON 解析失败 code=${resp.code}", e)
             throw EnkaApiException(resp.code, "响应不完整，请重试")
         }
         val detail = json.optString("detail", "")
@@ -549,17 +556,17 @@ private suspend fun fetchEnka(ctx: Context, uid: String): EnkaResult {
 private fun mergeRawFallback(client: okhttp3.OkHttpClient, adapted: JSONObject, uid: String) {
     runCatching {
         val rawReq = okhttp3.Request.Builder()
-            .url("https://api.mihomo.me/sr_info/$uid")
+            .url("${ApiHosts.MIHOMO_API}/sr_info/$uid")
             .header("User-Agent", "Mozilla/5.0 (Linux; Android 13) AppleWebKit/537.36")
-            .header("Referer", "https://enka.network/")
+            .header("Referer", ApiHosts.ENKA_REFERER)
             .get().build()
         val rawBody = client.newCall(rawReq).execute().use { it.body?.string().orEmpty() }
         if (rawBody.isBlank()) {
             LogHelper.w("Enka", "raw 兜底响应为空，未补回未收录角色")
             return
         }
-        val rawJson = try { JSONObject(rawBody) } catch (_: Exception) {
-            LogHelper.w("Enka", "raw 兜底 JSON 解析失败")
+        val rawJson = try { JSONObject(rawBody) } catch (e: Exception) {
+            LogHelper.e("Enka", "raw 兜底 JSON 解析失败", e)
             return
         }
         val rawChars = rawJson.optJSONObject("detailInfo")?.optJSONArray("avatarDetailList") ?: run {

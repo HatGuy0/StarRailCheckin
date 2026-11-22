@@ -1,7 +1,7 @@
 package com.mh.starrailcheckin.ui.profile
 
 import android.app.Activity
-import android.graphics.BitmapFactory
+import com.mh.starrailcheckin.util.BitmapSampler
 import android.os.Bundle
 import android.widget.ImageView
 import android.widget.Toast
@@ -61,6 +61,9 @@ import androidx.compose.ui.viewinterop.AndroidView
 import androidx.core.view.WindowInsetsControllerCompat
 import com.mh.starrailcheckin.R
 import com.mh.starrailcheckin.network.MicaApi
+import com.mh.starrailcheckin.ui.components.EmptyState
+import com.mh.starrailcheckin.ui.components.ErrorState
+import com.mh.starrailcheckin.ui.components.LoadingState
 import com.mh.starrailcheckin.ui.components.NavEventOwnerHost
 import com.mh.starrailcheckin.ui.theme.DarkBackgroundGradient
 import com.mh.starrailcheckin.ui.theme.LightBackgroundGradient
@@ -68,10 +71,10 @@ import com.mh.starrailcheckin.ui.theme.LocalAppDarkTheme
 import com.mh.starrailcheckin.ui.theme.StarRailCheckinTheme
 import com.mh.starrailcheckin.util.LogHelper
 import com.mh.starrailcheckin.util.Prefs
+import com.mh.starrailcheckin.util.UiError
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 import top.yukonga.miuix.kmp.basic.IconButton
-import top.yukonga.miuix.kmp.basic.InfiniteProgressIndicator
 import top.yukonga.miuix.kmp.basic.Scaffold
 import top.yukonga.miuix.kmp.basic.Text
 import top.yukonga.miuix.kmp.basic.TextButton
@@ -81,7 +84,6 @@ import top.yukonga.miuix.kmp.theme.MiuixTheme
  * 全角色面板查询（Cookie 战绩接口）：角色选择页。
  * 布局仿米游社「全部角色」：元素/命途双筛选 + 三列角色卡片。
  * 数据：MicaApi.fetchAvatarList（1 小时缓存，重进/切页不刷新）。
- * 后续版本：点击卡片跳转该角色的详情面板。
  */
 class AllCharactersActivity : AppCompatActivity() {
 
@@ -152,8 +154,8 @@ private fun AllCharactersScreen(onBack: () -> Unit) {
                 .onSuccess { avatars = it }
                 .onFailure {
                     LogHelper.e("AllChar", "全角色列表加载失败", it)
-                    if (avatars == null) error = it.message ?: "加载失败"
-                    else Toast.makeText(context, it.message ?: "刷新失败", Toast.LENGTH_SHORT).show()
+                    if (avatars == null) error = UiError.message(it, "加载失败")
+                    else Toast.makeText(context, UiError.message(it, "刷新失败"), Toast.LENGTH_SHORT).show()
                 }
         }
         loading = false
@@ -208,7 +210,7 @@ private fun AllCharactersScreen(onBack: () -> Unit) {
         }
 
         if (!loggedIn) {
-            EmptyHint("需要登录且获取到 Cookie 后使用\n请在「我的」页登录米游社账号")
+            EmptyState("需要登录且获取到 Cookie 后使用\n请在「我的」页登录米游社账号", modifier = Modifier.fillMaxSize())
             return@Column
         }
 
@@ -261,28 +263,13 @@ private fun AllCharactersScreen(onBack: () -> Unit) {
         Spacer(modifier = Modifier.height(4.dp))
 
         when {
-            loading && avatars == null -> {
-                Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
-                    InfiniteProgressIndicator()
-                }
-            }
-            error != null && avatars == null -> {
-                Column(
-                    modifier = Modifier.fillMaxSize(),
-                    horizontalAlignment = Alignment.CenterHorizontally,
-                    verticalArrangement = Arrangement.Center
-                ) {
-                    Text(
-                        error ?: "加载失败",
-                        style = MiuixTheme.textStyles.body2,
-                        color = MiuixTheme.colorScheme.error,
-                        textAlign = TextAlign.Center
-                    )
-                    Spacer(modifier = Modifier.height(12.dp))
-                    TextButton(text = "重试", onClick = { forceNext = true; reload++ })
-                }
-            }
-            filtered.isEmpty() -> EmptyHint("该筛选条件下暂无角色")
+            loading && avatars == null -> LoadingState(modifier = Modifier.fillMaxSize())
+            error != null && avatars == null -> ErrorState(
+                message = error ?: "加载失败",
+                onRetry = { forceNext = true; reload++ },
+                modifier = Modifier.fillMaxSize()
+            )
+            filtered.isEmpty() -> EmptyState("该筛选条件下暂无角色")
             else -> {
                 LazyVerticalGrid(
                     columns = GridCells.Fixed(3),
@@ -296,18 +283,6 @@ private fun AllCharactersScreen(onBack: () -> Unit) {
                 }
             }
         }
-    }
-}
-
-@Composable
-private fun EmptyHint(msg: String) {
-    Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
-        Text(
-            msg,
-            style = MiuixTheme.textStyles.body2,
-            color = MiuixTheme.colorScheme.onSurfaceSecondary,
-            textAlign = TextAlign.Center
-        )
     }
 }
 
@@ -350,10 +325,15 @@ private fun AllGridIcon(selected: Boolean) {
 @Composable
 private fun rememberAssetBitmap(path: String): ImageBitmap? {
     val context = LocalContext.current
+    // 素材优先取同名单色 webp（包体积更小），缺失再回退原路径（png）。
+    val webp = path.substringBeforeLast(".") + ".webp"
+    val candidates = if (webp == path) listOf(path) else listOf(webp, path)
     return remember(path) {
-        runCatching {
-            context.assets.open(path).use { BitmapFactory.decodeStream(it) }?.asImageBitmap()
-        }.getOrNull()
+        candidates.firstNotNullOfOrNull { p ->
+            runCatching {
+                context.assets.open(p).use { BitmapSampler.decodeStream(it, 256) }?.asImageBitmap()
+            }.getOrNull()
+        }
     }
 }
 

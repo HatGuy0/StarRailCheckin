@@ -18,7 +18,9 @@ release.jks
 *.p12
 *.pem
 
-# ===== 版权美术素材（仅剥离角色头像 / 立绘，运行时走在线加载/磁盘缓存） =====
+# ===== 版权美术素材（角色头像 avatar/ + 立绘 portrait/） =====
+# 口径：不进源码仓库（提交代码前剔除）；但 Release 安装包必须内置。
+# 出包前从备份目录把这两个目录拷入 app/src/main/assets/ 再打包，打完包仍不提交 git。
 # 其余图标（光锥 / 遗器 / 技能 / 奖励 / 元素命途）随源码入库
 app/src/main/assets/avatar/
 app/src/main/assets/portrait/

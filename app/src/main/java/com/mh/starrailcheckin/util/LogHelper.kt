@@ -45,6 +45,13 @@ object LogHelper {
         log('E', tag, msg + (tr?.let { " | ${it.javaClass.simpleName}: ${it.message}" } ?: ""))
     }
 
+    /** 崩溃堆栈落盘：完整栈轨迹写入文件日志，供导出日志复盘（不做远程上报）。 */
+    fun crash(tag: String, tr: Throwable) {
+        Log.e(TAG, "$tag: 未捕获异常", tr)
+        val stack = android.util.Log.getStackTraceString(tr)
+        log('E', tag, "未捕获异常: ${tr.javaClass.name}: ${tr.message}\n$stack")
+    }
+
     private fun log(level: Char, tag: String, msg: String) {
         Log.println(level.code, TAG, "$tag: $msg")
         val dir = logDir ?: return

@@ -389,13 +389,17 @@ object Prefs {
     fun setProfileRefreshAt(c: Context, at: Long) =
         sp(c).edit().putLong(KEY_PROFILE_REFRESH_AT, at).apply()
 
+    /** 上次资料归属的账号 UID，用于切换账号后判断是否需要强制重拉（不清零，保留旧账号作对比基准）。 */
+    private const val KEY_PROFILE_LAST_UID = "profile_last_uid"
+    fun profileLastUid(c: Context): String = sp(c).getString(KEY_PROFILE_LAST_UID, "") ?: ""
+    fun setProfileLastUid(c: Context, uid: String) =
+        sp(c).edit().putString(KEY_PROFILE_LAST_UID, uid).apply()
+
     // ---------- 开拓力卡片缓存（重进先展示上次数据） ----------
     private const val KEY_STAMINA_CACHE = "stamina_cache_json"
-    private const val KEY_STAMINA_CACHE_UID = "stamina_cache_uid"
     fun staminaCache(c: Context): String = sp(c).getString(KEY_STAMINA_CACHE, "") ?: ""
-    fun staminaCacheUid(c: Context): String = sp(c).getString(KEY_STAMINA_CACHE_UID, "") ?: ""
-    fun setStaminaCache(c: Context, json: String, uid: String) =
-        sp(c).edit().putString(KEY_STAMINA_CACHE, json).putString(KEY_STAMINA_CACHE_UID, uid).apply()
+    fun setStaminaCache(c: Context, json: String) =
+        sp(c).edit().putString(KEY_STAMINA_CACHE, json).apply()
 
     // ---------- 战绩磁盘缓存（1 小时有效，重进/切页不重新请求） ----------
     private const val KEY_CHALLENGE_CACHE = "challenge_cache_json"
@@ -426,7 +430,8 @@ object Prefs {
             .remove(KEY_ACTIVE_ACCOUNT)
             // 账号相关缓存一并清空，避免下个账号沿用旧数据/旧刷新时间
             .remove(KEY_PROFILE_REFRESH_AT)
-            .remove(KEY_STAMINA_CACHE).remove(KEY_STAMINA_CACHE_UID)
+            .remove(KEY_PROFILE_LAST_UID)
+            .remove(KEY_STAMINA_CACHE)
             .remove(KEY_CHALLENGE_CACHE).remove(KEY_SIGN_CACHE)
             .remove(KEY_REMOTE_AVATAR_URL)
             .apply()
@@ -656,6 +661,20 @@ object Prefs {
             .apply()
     }
 
+    /**
+     * 切换到另一账号后，清理不按 UID 隔离的会话/展示缓存（体力、战绩、签到、头像 URL、
+     * 刷新节流时间戳与当前 Cookie 健康态）；保留多账号列表、设备指纹、自定义头像与提醒设置。
+     */
+    private fun clearAccountSessionCache(c: Context) {
+        sp(c).edit()
+            .remove(KEY_PROFILE_REFRESH_AT)
+            .remove(KEY_STAMINA_CACHE)
+            .remove(KEY_CHALLENGE_CACHE).remove(KEY_SIGN_CACHE)
+            .remove(KEY_REMOTE_AVATAR_URL)
+            .apply()
+        clearCookieHealthState(c)
+    }
+
     /** 登录成功/角色刷新后，把当前登录态写回账号列表。 */
     fun saveCurrentAccount(c: Context): Account? {
         val ck = cookie(c).trim()
@@ -676,6 +695,7 @@ object Prefs {
     fun switchAccount(c: Context, id: String): Boolean {
         val target = accounts(c).firstOrNull { it.id == id } ?: return false
         if (cookie(c).isNotBlank()) saveCurrentAccount(c)
+        val oldUid = uid(c)
         sp(c).edit()
             .putString(KEY_COOKIE, target.cookie)
             .putString(KEY_UID, target.uid)
@@ -684,6 +704,9 @@ object Prefs {
             .putString(KEY_AVATAR_URL, target.avatarUrl)
             .apply()
         setActiveAccountId(c, target.id)
+        // 保留旧账号 UID 作为对比基准，供“我的”页判断需要强制重拉；会话展示缓存随后清理。
+        setProfileLastUid(c, oldUid)
+        clearAccountSessionCache(c)
         LogHelper.i("Prefs", "已切换账号 uid=${target.uid} server=${target.server}")
         return true
     }
@@ -696,6 +719,7 @@ object Prefs {
         writeAccounts(c, list)
         if (removed == null) return
         if (activeAccountId(c) != id && currentAccount(c).id != id) return
+        val oldUid = uid(c)
         val next = list.firstOrNull()
         if (next != null) {
             // 直接写入目标账号，避免 saveCurrentAccount 把刚删除的账号又写回列表
@@ -707,6 +731,8 @@ object Prefs {
                 .putString(KEY_AVATAR_URL, next.avatarUrl)
                 .putString(KEY_ACTIVE_ACCOUNT, next.id)
                 .apply()
+            setProfileLastUid(c, oldUid)
+            clearAccountSessionCache(c)
         } else {
             clearLogin(c)
         }
@@ -852,6 +878,12 @@ object Prefs {
     fun setLastFgsHeartbeatAt(c: Context, at: Long) =
         sp(c).edit().putLong(KEY_LAST_FGS_HEARTBEAT, at).apply()
 
+    /** 最近一次自愈尝试拉起前台服务的时刻，用于限制最小重拉间隔，避免双栈抖动反复拉起。 */
+    private const val KEY_LAST_FGS_START_AT = "last_fgs_start_attempt_at"
+    fun lastFgsStartAttemptAt(c: Context): Long = sp(c).getLong(KEY_LAST_FGS_START_AT, 0L)
+    fun setLastFgsStartAttemptAt(c: Context, at: Long) =
+        sp(c).edit().putLong(KEY_LAST_FGS_START_AT, at).apply()
+
     // ---------- 分任务心跳 / 最近一次成功联网时刻（后台状态自检分项展示） ----------
     const val TASK_REMIND = "remind"
     const val TASK_STAMINA = "stamina"
@@ -872,6 +904,15 @@ object Prefs {
 
     fun setWorkerSuccessAt(c: Context, task: String, at: Long) =
         sp(c).edit().putLong(workerSuccessKey(task), at).apply()
+
+    // ---------- 跨栈去重：同一任务在 WM / Alarm / Network 栈间共享的最近执行时刻 ----------
+    private fun backgroundRunKey(task: String) = "background_run_at_$task"
+
+    fun lastBackgroundRunAt(c: Context, task: String): Long =
+        sp(c).getLong(backgroundRunKey(task), 0L)
+
+    fun setBackgroundRunAt(c: Context, task: String, at: Long) =
+        sp(c).edit().putLong(backgroundRunKey(task), at).apply()
 
     // ---------- 提醒行为扩展：声音开关 / 贪睡间隔 / 目标时长 ----------
     private const val KEY_SOUND_ENABLED = "remind_sound_enabled"
@@ -1086,6 +1127,29 @@ object Prefs {
     fun gachaStd(c: Context): Int = sp(c).getInt(gachaKey(KEY_GACHA_STD, c), 0)
     fun setGachaStd(c: Context, v: Int) =
         sp(c).edit().putInt(gachaKey(KEY_GACHA_STD, c), v.coerceAtLeast(0)).apply()
+
+    // ---------- 角色配装分享卡（文案与显示项，全局持久化） ----------
+    private const val KEY_SHARE_CAPTION = "share_char_caption"
+    private const val KEY_SHARE_SHOW_UID = "share_char_show_uid"
+    private const val KEY_SHARE_SHOW_STATS = "share_char_show_stats"
+    private const val KEY_SHARE_SHOW_RELICS = "share_char_show_relics"
+    private const val KEY_SHARE_SHOW_SCORE = "share_char_show_score"
+
+    fun shareCaption(c: Context): String = sp(c).getString(KEY_SHARE_CAPTION, "") ?: ""
+    fun setShareCaption(c: Context, v: String) =
+        sp(c).edit().putString(KEY_SHARE_CAPTION, v.trim()).apply()
+
+    fun shareShowUid(c: Context): Boolean = sp(c).getBoolean(KEY_SHARE_SHOW_UID, true)
+    fun setShareShowUid(c: Context, v: Boolean) = sp(c).edit().putBoolean(KEY_SHARE_SHOW_UID, v).apply()
+
+    fun shareShowStats(c: Context): Boolean = sp(c).getBoolean(KEY_SHARE_SHOW_STATS, true)
+    fun setShareShowStats(c: Context, v: Boolean) = sp(c).edit().putBoolean(KEY_SHARE_SHOW_STATS, v).apply()
+
+    fun shareShowRelics(c: Context): Boolean = sp(c).getBoolean(KEY_SHARE_SHOW_RELICS, true)
+    fun setShareShowRelics(c: Context, v: Boolean) = sp(c).edit().putBoolean(KEY_SHARE_SHOW_RELICS, v).apply()
+
+    fun shareShowScore(c: Context): Boolean = sp(c).getBoolean(KEY_SHARE_SHOW_SCORE, true)
+    fun setShareShowScore(c: Context, v: Boolean) = sp(c).edit().putBoolean(KEY_SHARE_SHOW_SCORE, v).apply()
 
     // ---------- Flow 包装方法（兼容 Compose collectAsState） ----------
     fun getRemindEnabled(context: Context) = kotlinx.coroutines.flow.flowOf(reminderEnabled(context))

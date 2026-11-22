@@ -1,9 +1,10 @@
 <?xml version="1.0" encoding="utf-8"?>
-<!-- 无障碍保活辅助：不读取界面内容，仅用于提升后台存活率 -->
+<!-- 无障碍保活辅助：不读取界面内容，仅监听星穹铁道各安装包的窗口切换，缩小监听面 -->
 <accessibility-service xmlns:android="http://schemas.android.com/apk/res/android"
     android:accessibilityEventTypes="typeWindowStateChanged"
     android:accessibilityFeedbackType="feedbackGeneric"
     android:accessibilityFlags="flagDefault"
     android:canRetrieveWindowContent="false"
+    android:packageNames="com.miHoYo.hkrpg,com.mihoyo.hkrpg,com.miHoYo.hkrpg.bilibili,com.miHoYo.cloudgames.hkrpg"
     android:description="@string/accessibility_service_desc"
     android:notificationTimeout="100" />

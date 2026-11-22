@@ -129,20 +129,20 @@ object NotifyHelper {
     }
 
     /** 无悬浮窗权限/弹窗拉起失败时的回退提醒（全屏Intent唤醒弹窗） */
-    fun showRemindNotification(context: Context) {
+    fun showRemindNotification(context: Context, fromAlarm: Boolean = false, manualTest: Boolean = false) {
         ensureChannels(context)
         val contentPi = PendingIntent.getActivity(
             context, 1,
             Intent(context, RemindDialogActivity::class.java)
-                .putExtra(RemindDialogActivity.EXTRA_FROM_ALARM, false)
-                .putExtra(RemindDialogActivity.EXTRA_MANUAL_TEST, false),
+                .putExtra(RemindDialogActivity.EXTRA_FROM_ALARM, fromAlarm)
+                .putExtra(RemindDialogActivity.EXTRA_MANUAL_TEST, manualTest),
             PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE
         )
         val fullPi = PendingIntent.getActivity(
             context, 2,
             Intent(context, RemindDialogActivity::class.java)
-                .putExtra(RemindDialogActivity.EXTRA_FROM_ALARM, false)
-                .putExtra(RemindDialogActivity.EXTRA_MANUAL_TEST, false),
+                .putExtra(RemindDialogActivity.EXTRA_FROM_ALARM, fromAlarm)
+                .putExtra(RemindDialogActivity.EXTRA_MANUAL_TEST, manualTest),
             PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE
         )
         val n = NotificationCompat.Builder(context, CHANNEL_REMIND)

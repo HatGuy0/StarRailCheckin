@@ -3,6 +3,7 @@ package com.mh.starrailcheckin.ui.more
 import android.content.Intent
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
+import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
@@ -11,8 +12,8 @@ import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.runtime.Composable
@@ -25,10 +26,16 @@ import com.mh.starrailcheckin.ui.components.DialogButtonRow
 import top.yukonga.miuix.kmp.overlay.OverlayDialog
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.unit.dp
 import androidx.core.content.FileProvider
+import com.mh.starrailcheckin.R
 import com.mh.starrailcheckin.network.MicaApi
+import com.mh.starrailcheckin.ui.theme.DarkBackgroundGradient
+import com.mh.starrailcheckin.ui.theme.LightBackgroundGradient
+import com.mh.starrailcheckin.ui.theme.LocalAppDarkTheme
 import com.mh.starrailcheckin.util.BackupHelper
 import com.mh.starrailcheckin.util.LogHelper
 import com.mh.starrailcheckin.util.Prefs
@@ -37,9 +44,12 @@ import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import java.io.File
 import com.mh.starrailcheckin.ui.components.AppCard
+import top.yukonga.miuix.kmp.basic.Icon
+import top.yukonga.miuix.kmp.basic.IconButton
 import top.yukonga.miuix.kmp.basic.Text
 import top.yukonga.miuix.kmp.basic.TextButton
 import top.yukonga.miuix.kmp.basic.TextField
+import top.yukonga.miuix.kmp.basic.TopAppBar
 import top.yukonga.miuix.kmp.theme.MiuixTheme
 
 /**
@@ -51,6 +61,7 @@ import top.yukonga.miuix.kmp.theme.MiuixTheme
 fun MoreScreen(onBack: () -> Unit) {
     val context = LocalContext.current
     val scope = rememberCoroutineScope()
+    val dark = LocalAppDarkTheme.current
 
     var deviceInput by remember { mutableStateOf("") }
     var bound by remember { mutableStateOf(Prefs.hasBoundDevice(context)) }
@@ -101,29 +112,28 @@ fun MoreScreen(onBack: () -> Unit) {
     Column(
         modifier = Modifier
             .fillMaxSize()
-            .verticalScroll(rememberScrollState())
-            .padding(16.dp)
-            .padding(bottom = 88.dp)
+            .background(Brush.verticalGradient(if (dark) DarkBackgroundGradient else LightBackgroundGradient))
+            .navigationBarsPadding()
     ) {
-        // 顶部返回栏
-        Row(
+        TopAppBar(
+            title = "更多",
+            navigationIcon = {
+                IconButton(onClick = onBack) {
+                    Icon(
+                        painter = painterResource(R.drawable.ic_back),
+                        contentDescription = "返回",
+                        tint = MiuixTheme.colorScheme.onBackground
+                    )
+                }
+            }
+        )
+        Column(
             modifier = Modifier
-                .fillMaxWidth()
-                .padding(bottom = 16.dp),
-            verticalAlignment = Alignment.CenterVertically
+                .fillMaxSize()
+                .verticalScroll(rememberScrollState())
+                .padding(16.dp)
+                .padding(bottom = 88.dp)
         ) {
-            Text(
-                text = "←",
-                style = MiuixTheme.textStyles.title1,
-                modifier = Modifier.clickable(onClick = onBack)
-            )
-            Spacer(modifier = Modifier.height(0.dp))
-            Text(
-                text = "更多",
-                style = MiuixTheme.textStyles.title1,
-                modifier = Modifier.padding(start = 16.dp)
-            )
-        }
 
         // ---------- 账号与设备 ----------
         AppCard(
@@ -274,6 +284,7 @@ fun MoreScreen(onBack: () -> Unit) {
                     backupImportLauncher.launch(arrayOf("application/zip", "application/octet-stream", "*/*"))
                 }
             }
+        }
         }
     }
 

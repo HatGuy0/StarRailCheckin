@@ -20,6 +20,11 @@ import top.yukonga.miuix.kmp.theme.darkColorScheme as miuixDarkColorScheme
 /** 应用内当前是否为深色（跟随手动主题选择，供卡片阴影色、底栏文字色取明暗） */
 val LocalAppDarkTheme = staticCompositionLocalOf { false }
 
+/** 语义成功色（达成 / 正面 / 好评），明暗两套；失败 / 错误复用 [MaterialTheme.colorScheme.error]。 */
+private val LightSuccess = Color(0xFF2E9E6B)
+private val DarkSuccess = Color(0xFF4CC38A)
+val LocalSuccessColor = staticCompositionLocalOf { LightSuccess }
+
 private val LightColorScheme = lightColorScheme(
     primary = Color(0xFF3482FF),
     secondary = Color(0xFF00BCD4),
@@ -104,7 +109,10 @@ fun StarRailCheckinTheme(
     // 外层 Miuix 主题：供后续替换的 Miuix 组件取色。
     // 内层 M3 主题：供现有 M3 组件与底栏 Tab 槽位（Icon/Text）兜底隔离，避免被 Miuix 主题改色。
     MiuixTheme(controller = controller) {
-        CompositionLocalProvider(LocalAppDarkTheme provides resolvedDarkTheme) {
+        CompositionLocalProvider(
+            LocalAppDarkTheme provides resolvedDarkTheme,
+            LocalSuccessColor provides if (resolvedDarkTheme) DarkSuccess else LightSuccess
+        ) {
             MaterialTheme(
                 colorScheme = colorScheme,
                 content = content

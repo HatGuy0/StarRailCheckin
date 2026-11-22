@@ -2,19 +2,22 @@ package com.mh.starrailcheckin.ui.profile
 
 import android.content.Context
 import android.graphics.Bitmap
-import android.graphics.BitmapFactory
 import android.graphics.drawable.GradientDrawable
+import android.util.LruCache
 import android.widget.ImageView
+import com.mh.starrailcheckin.network.ApiHosts
+import com.mh.starrailcheckin.util.BitmapSampler
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import java.io.File
 import java.io.FileOutputStream
+import java.lang.ref.WeakReference
 import java.net.HttpURLConnection
 import java.net.URL
 import java.security.MessageDigest
-import java.util.concurrent.ConcurrentHashMap
 
 /**
  * 图片加载器（全角色内置 + 新角色云端兜底）
@@ -25,20 +28,22 @@ import java.util.concurrent.ConcurrentHashMap
  *       → 下载后自动压缩 WebP 写缓存，LRU 50MB 上限
  */
 object EnkaImageLoader {
-    private val memCache = ConcurrentHashMap<String, Bitmap>()
-    private const val BASE_JS = "https://cdn.jsdelivr.net/gh/Mar-7th/StarRailRes@master"
-    private const val BASE_VIZ = "https://vizualabstract.github.io/StarRailStaticAPI/assets"
-    private const val RAW = "https://raw.githubusercontent.com/Mar-7th/StarRailRes/master"
-    private val GH_PROXIES = listOf(
-        "https://gh-proxy.com/",
-        "https://ghfast.top/",
-        "https://ghproxy.net/",
-        "https://mirror.ghproxy.com/",
-        "https://gh.llkk.cc/"
-    )
+    /** 内存缓存：按位图字节数计入 LRU，上限取可用堆的 1/8；淘汰出缓存不主动 recycle，避免回收正在显示的图。 */
+    private val memCacheMaxBytes = (Runtime.getRuntime().maxMemory() / 8).toInt().coerceAtLeast(1)
+    private val memCache = object : LruCache<String, Bitmap>(memCacheMaxBytes) {
+        override fun sizeOf(key: String, value: Bitmap): Int =
+            value.allocationByteCount.coerceAtLeast(1)
+    }
+    private const val BASE_JS = ApiHosts.JSDELIVERT_MAR7TH
+    private const val BASE_VIZ = "${ApiHosts.VIZUAL_BASE}/assets"
+    private const val RAW = ApiHosts.GITHUB_RAW_MAR7TH
+    private val GH_PROXIES = ApiHosts.GH_PROXIES
     private const val CACHE_LIMIT_BYTES = 50L * 1024 * 1024
 
-    /** 角色头像（内置98张 PNG） */
+    /** 共享 IO 作用域：SupvisorJob 隔离单次任务失败；页面退出后靠弱引用 + attached 校验放弃回写。 */
+    private val ioScope = CoroutineScope(SupervisorJob() + Dispatchers.IO)
+
+    /** 角色头像（内置98张 WebP） */
     fun loadAvatar(ctx: Context, aid: Int, iv: ImageView) {
         val key = "avatar_$aid"
         if (tryAssets(ctx, listOf("avatar/$aid.webp", "avatar/$aid.png"), key, iv)) return
@@ -77,21 +82,21 @@ object EnkaImageLoader {
      */
     fun portraitBitmap(ctx: Context, aid: Int): Bitmap? {
         val key = "portrait_$aid"
-        memCache[key]?.let { return it }
+        memCache.get(key)?.let { return it }
         for (p in listOf("portrait/$aid.webp", "portrait/$aid.png")) {
             val bmp = runCatching {
-                ctx.assets.open(p).use { BitmapFactory.decodeStream(it) }
+                ctx.assets.open(p).use { BitmapSampler.decodeStream(it, 1024) }
             }.getOrNull()
             if (bmp != null) {
-                memCache[key] = bmp
+                memCache.put(key, bmp)
                 return bmp
             }
         }
         val disk = File(ctx.cacheDir, md5(key))
         if (disk.exists() && disk.length() > 500) {
-            val bmp = runCatching { BitmapFactory.decodeFile(disk.absolutePath) }.getOrNull()
+            val bmp = decodeDiskOrPurge(disk, 1024)
             if (bmp != null) {
-                memCache[key] = bmp
+                memCache.put(key, bmp)
                 return bmp
             }
         }
@@ -101,10 +106,11 @@ object EnkaImageLoader {
                 conn.connectTimeout = 10000
                 conn.readTimeout = 20000
                 conn.instanceFollowRedirects = true
-                conn.inputStream.use { BitmapFactory.decodeStream(it) }
+                val data = conn.inputStream.use { it.readBytes() }
+                BitmapSampler.decodeByteArray(data, 1024)
             }.getOrNull() ?: continue
             val scale = 1024f / maxOf(raw.width, raw.height)
-            val final = if (scale < 1f) {
+            val scaled = if (scale < 1f) {
                 Bitmap.createScaledBitmap(
                     raw,
                     (raw.width * scale).toInt().coerceAtLeast(1),
@@ -113,10 +119,11 @@ object EnkaImageLoader {
                 )
             } else raw
             runCatching {
-                FileOutputStream(disk).use { final.compress(Bitmap.CompressFormat.WEBP, 80, it) }
+                FileOutputStream(disk).use { scaled.compress(Bitmap.CompressFormat.WEBP, 80, it) }
             }
-            memCache[key] = final
-            return final
+            if (scaled != raw) raw.recycle()
+            memCache.put(key, scaled)
+            return scaled
         }
         return null
     }
@@ -140,42 +147,52 @@ object EnkaImageLoader {
     fun loadUrl(ctx: Context, url: String, iv: ImageView, maxEdge: Int = 1024, quality: Int = 80) {
         if (url.isBlank()) { showPlaceholder(iv); return }
         val key = "url_" + md5(url)
-        memCache[key]?.let { iv.setImageBitmap(it); return }
+        memCache.get(key)?.let { iv.setImageBitmap(it); return }
         val disk = File(ctx.cacheDir, md5(key))
         if (disk.exists() && disk.length() > 500) {
             try {
-                val bmp = BitmapFactory.decodeFile(disk.absolutePath)
-                if (bmp != null) { memCache[key] = bmp; iv.background = null; iv.setImageBitmap(bmp); return }
+                val bmp = decodeDiskOrPurge(disk, maxEdge)
+                if (bmp != null) { memCache.put(key, bmp); iv.background = null; iv.setImageBitmap(bmp); return }
             } catch (_: Exception) {}
         }
         showPlaceholder(iv)
-        CoroutineScope(Dispatchers.IO).launch {
+        val ivRef = WeakReference(iv)
+        ioScope.launch {
             var raw: Bitmap? = null
+            var conn: HttpURLConnection? = null
             try {
-                val conn = URL(url).openConnection() as HttpURLConnection
+                conn = URL(url).openConnection() as HttpURLConnection
                 conn.connectTimeout = 10000
                 conn.readTimeout = 20000
                 conn.instanceFollowRedirects = true
                 conn.requestMethod = "GET"
                 conn.setRequestProperty("User-Agent", "Mozilla/5.0 (Linux; Android 13) AppleWebKit/537.36")
-                raw = BitmapFactory.decodeStream(conn.inputStream)
-                conn.disconnect()
-            } catch (_: Exception) {}
-            val final = raw?.let { bmp ->
-                val w = bmp.width; val h = bmp.height
-                val scale = maxEdge.toFloat() / maxOf(w, h)
-                val scaled = if (scale < 1f)
-                    Bitmap.createScaledBitmap(bmp, (w * scale).toInt(), (h * scale).toInt(), true)
-                else bmp
-                try {
-                    FileOutputStream(disk).use { out -> scaled.compress(Bitmap.CompressFormat.WEBP, quality.coerceIn(50, 100), out) }
-                } catch (_: Exception) {}
-                if (scaled != bmp) bmp.recycle()
-                trimCache(ctx)
-                scaled
+                val data = conn.inputStream.use { it.readBytes() }
+                raw = BitmapSampler.decodeByteArray(data, maxEdge)
+            } catch (_: Exception) {
+            } finally {
+                conn?.disconnect()
             }
+            val final = runCatching {
+                raw?.let { bmp ->
+                    val w = bmp.width; val h = bmp.height
+                    val scale = maxEdge.toFloat() / maxOf(w, h)
+                    val scaled = if (scale < 1f)
+                        Bitmap.createScaledBitmap(bmp, (w * scale).toInt(), (h * scale).toInt(), true)
+                    else bmp
+                    try {
+                        FileOutputStream(disk).use { out -> scaled.compress(Bitmap.CompressFormat.WEBP, quality.coerceIn(50, 100), out) }
+                    } catch (_: Exception) {}
+                    if (scaled != bmp) bmp.recycle()
+                    trimCache(ctx)
+                    scaled
+                }
+            }.getOrNull()
             withContext(Dispatchers.Main) {
-                if (final != null) { memCache[key] = final; iv.background = null; iv.setImageBitmap(final) }
+                val target = ivRef.get()
+                if (final != null && target != null && target.isAttachedToWindow) {
+                    memCache.put(key, final); target.background = null; target.setImageBitmap(final)
+                }
             }
         }
     }
@@ -192,11 +209,11 @@ object EnkaImageLoader {
     suspend fun bitmapForUrl(ctx: Context, url: String, maxEdge: Int = 128): Bitmap? {
         if (url.isBlank()) return null
         val key = "url_" + md5(url)
-        memCache[key]?.let { return it }
+        memCache.get(key)?.let { return it }
         val disk = File(ctx.cacheDir, md5(key))
         if (disk.exists() && disk.length() > 500) {
-            runCatching { BitmapFactory.decodeFile(disk.absolutePath) }.getOrNull()?.let {
-                memCache[key] = it
+            decodeDiskOrPurge(disk, maxEdge)?.let {
+                memCache.put(key, it)
                 return it
             }
         }
@@ -209,22 +226,27 @@ object EnkaImageLoader {
                 conn.requestMethod = "GET"
                 conn.setRequestProperty("User-Agent", "Mozilla/5.0 (Linux; Android 13) AppleWebKit/537.36")
                 try {
-                    BitmapFactory.decodeStream(conn.inputStream)
+                    val data = conn.inputStream.use { it.readBytes() }
+                    BitmapSampler.decodeByteArray(data, maxEdge)
                 } finally {
                     conn.disconnect()
                 }
             }.getOrNull()
         } ?: return null
-        val scaled = raw.let { bmp ->
-            val w = bmp.width; val h = bmp.height
-            val scale = maxEdge.toFloat() / maxOf(w, h)
-            if (scale < 1f)
-                Bitmap.createScaledBitmap(bmp, (w * scale).toInt().coerceAtLeast(1),
-                    (h * scale).toInt().coerceAtLeast(1), true)
-            else bmp
-        }
+        val scaled = runCatching {
+            raw.let { bmp ->
+                val w = bmp.width; val h = bmp.height
+                val scale = maxEdge.toFloat() / maxOf(w, h)
+                val s = if (scale < 1f)
+                    Bitmap.createScaledBitmap(bmp, (w * scale).toInt().coerceAtLeast(1),
+                        (h * scale).toInt().coerceAtLeast(1), true)
+                else bmp
+                if (s != bmp) bmp.recycle()
+                s
+            }
+        }.getOrNull() ?: return null
         runCatching { FileOutputStream(disk).use { scaled.compress(Bitmap.CompressFormat.WEBP, 80, it) } }
-        memCache[key] = scaled
+        memCache.put(key, scaled)
         return scaled
     }
 
@@ -238,12 +260,12 @@ object EnkaImageLoader {
     }
 
     private fun tryAssets(ctx: Context, paths: List<String>, key: String, iv: ImageView): Boolean {
-        memCache[key]?.let { iv.setImageBitmap(it); return true }
+        memCache.get(key)?.let { iv.setImageBitmap(it); return true }
         for (p in paths) {
             try {
-                val bmp = ctx.assets.open(p).use { BitmapFactory.decodeStream(it) }
+                val bmp = ctx.assets.open(p).use { BitmapSampler.decodeStream(it, 1024) }
                 if (bmp != null) {
-                    memCache[key] = bmp
+                    memCache.put(key, bmp)
                     iv.background = null
                     iv.setImageBitmap(bmp)
                     return true
@@ -254,47 +276,64 @@ object EnkaImageLoader {
     }
 
     private fun loadFromNetwork(ctx: Context, key: String, urls: List<String>, iv: ImageView, maxEdge: Int) {
-        memCache[key]?.let { iv.setImageBitmap(it); return }
+        memCache.get(key)?.let { iv.setImageBitmap(it); return }
         val disk = File(ctx.cacheDir, md5(key))
         if (disk.exists() && disk.length() > 500) {
             try {
-                val bmp = BitmapFactory.decodeFile(disk.absolutePath)
-                if (bmp != null) { memCache[key] = bmp; iv.background = null; iv.setImageBitmap(bmp); return }
+                val bmp = decodeDiskOrPurge(disk, maxEdge)
+                if (bmp != null) { memCache.put(key, bmp); iv.background = null; iv.setImageBitmap(bmp); return }
             } catch (_: Exception) {}
         }
         showPlaceholder(iv)
-        CoroutineScope(Dispatchers.IO).launch {
+        val ivRef = WeakReference(iv)
+        ioScope.launch {
             var raw: Bitmap? = null
             for (u in urls) {
+                var conn: HttpURLConnection? = null
                 try {
-                    val conn = URL(u).openConnection() as HttpURLConnection
+                    conn = URL(u).openConnection() as HttpURLConnection
                     conn.connectTimeout = 10000
                     conn.readTimeout = 20000
                     conn.instanceFollowRedirects = true
                     conn.requestMethod = "GET"
                     conn.setRequestProperty("User-Agent", "Mozilla/5.0")
-                    raw = BitmapFactory.decodeStream(conn.inputStream)
-                    conn.disconnect()
+                    val data = conn.inputStream.use { it.readBytes() }
+                    raw = BitmapSampler.decodeByteArray(data, maxEdge)
                     if (raw != null) break
-                } catch (_: Exception) {}
+                } catch (_: Exception) {
+                } finally {
+                    conn?.disconnect()
+                }
             }
-            val final = raw?.let { bmp ->
-                val w = bmp.width; val h = bmp.height
-                val scale = maxEdge.toFloat() / maxOf(w, h)
-                val scaled = if (scale < 1f)
-                    Bitmap.createScaledBitmap(bmp, (w * scale).toInt(), (h * scale).toInt(), true)
-                else bmp
-                try {
-                    FileOutputStream(disk).use { out -> scaled.compress(Bitmap.CompressFormat.WEBP, 80, out) }
-                } catch (_: Exception) {}
-                if (scaled != bmp) bmp.recycle()
-                trimCache(ctx)
-                scaled
-            }
+            val final = runCatching {
+                raw?.let { bmp ->
+                    val w = bmp.width; val h = bmp.height
+                    val scale = maxEdge.toFloat() / maxOf(w, h)
+                    val scaled = if (scale < 1f)
+                        Bitmap.createScaledBitmap(bmp, (w * scale).toInt(), (h * scale).toInt(), true)
+                    else bmp
+                    try {
+                        FileOutputStream(disk).use { out -> scaled.compress(Bitmap.CompressFormat.WEBP, 80, out) }
+                    } catch (_: Exception) {}
+                    if (scaled != bmp) bmp.recycle()
+                    trimCache(ctx)
+                    scaled
+                }
+            }.getOrNull()
             withContext(Dispatchers.Main) {
-                if (final != null) { memCache[key] = final; iv.background = null; iv.setImageBitmap(final) }
+                val target = ivRef.get()
+                if (final != null && target != null && target.isAttachedToWindow) {
+                    memCache.put(key, final); target.background = null; target.setImageBitmap(final)
+                }
             }
         }
+    }
+
+    /** 解码磁盘缓存；文件损坏或解码失败时剔除坏文件，返回 null 由上层走网络重下。 */
+    private fun decodeDiskOrPurge(disk: File, maxEdge: Int): Bitmap? {
+        val bmp = BitmapSampler.decodeFile(disk.absolutePath, maxEdge)
+        if (bmp == null) runCatching { if (disk.exists()) disk.delete() }
+        return bmp
     }
 
     private fun trimCache(ctx: Context) {
@@ -313,7 +352,7 @@ object EnkaImageLoader {
 
     /** 清空内存缓存、磁盘图片文件以及 WebView 产生的本地缓存。 */
     fun clearCache(ctx: Context) {
-        memCache.clear()
+        memCache.evictAll()
         // 图片磁盘缓存（32 字符 md5 文件名）
         ctx.cacheDir.listFiles()?.forEach { if (it.name.length == 32) it.delete() }
         // WebView 缓存目录（不同系统版本落在 cacheDir 或 filesDir 下）

@@ -42,7 +42,7 @@ import top.yukonga.miuix.kmp.basic.Text
 import top.yukonga.miuix.kmp.theme.MiuixTheme
 
 private const val NEWS_LIST_API =
-    "https://bbs-api-static.miyoushe.com/painter/wapi/getNewsList?client_type=4&gids=6&last_id=&page_size=20"
+    "${com.mh.starrailcheckin.network.ApiHosts.BBS_API_STATIC_MIYOUSHE}/painter/wapi/getNewsList?client_type=4&gids=6&last_id=&page_size=20"
 
 /** 资讯分类：type=1 官方公告 / 版本说明，type=3 活动与资讯速递 */
 private val NEWS_TABS = listOf(1 to "公告", 3 to "资讯")
@@ -81,7 +81,7 @@ fun AnnounceCard() {
                     val req = Request.Builder()
                         .url("$NEWS_LIST_API&type=$type")
                         .header("User-Agent", "Mozilla/5.0 (Linux; Android 13) AppleWebKit/537.36 Chrome/108 Mobile Safari/537.36")
-                        .header("Referer", "https://www.miyoushe.com/")
+                        .header("Referer", "${com.mh.starrailcheckin.network.ApiHosts.WWW_MIYOUSHE}/")
                         .build()
                     client.newCall(req).execute().use { it.body?.string().orEmpty() }
                 }.getOrNull()

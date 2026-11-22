@@ -24,10 +24,12 @@ object StaminaMonitor {
             return
         }
         // 先取数成功再占节流：取数抛异常 / 返回 null 时本轮不封死节流，下一轮立即补跑
-        val info = runCatching { MicaApi.fetchStamina(context) }.getOrNull() ?: run {
-            LogHelper.w("StaminaMonitor", "体力接口返回空或异常，本轮不占节流")
-            return
-        }
+        val info = runCatching { MicaApi.fetchStamina(context) }
+            .onFailure { LogHelper.e("StaminaMonitor", "体力接口请求异常，本轮不占节流", it) }
+            .getOrNull() ?: run {
+                LogHelper.w("StaminaMonitor", "体力接口返回空或异常，本轮不占节流")
+                return
+            }
         Prefs.setStaminaLastCheckAt(context, now)
         Prefs.setWorkerSuccessAt(context, Prefs.TASK_STAMINA, now)
         evaluate(context, info)
@@ -37,7 +39,7 @@ object StaminaMonitor {
     fun checkNow(context: Context): String {
         if (!Prefs.isLoggedIn(context)) return "请先登录米游社并绑定星穹铁道角色"
         val info = runCatching { MicaApi.fetchStamina(context) }
-            .getOrElse { return "体力查询失败：${it.message ?: "网络异常"}" }
+            .getOrElse { return "体力查询失败：${UiError.message(it, "网络异常")}" }
         Prefs.setStaminaLastCheckAt(context, System.currentTimeMillis())
         val sent = evaluate(context, info)
         val tail = if (sent > 0) "已发送 $sent 条提醒" else "暂无需要提醒的项目"

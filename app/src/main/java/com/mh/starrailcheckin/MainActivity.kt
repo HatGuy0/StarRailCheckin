@@ -48,7 +48,6 @@ import top.yukonga.miuix.kmp.theme.MiuixTheme
 import com.mh.starrailcheckin.ui.check.CheckScreen
 import com.mh.starrailcheckin.ui.gacha.GachaInputActivity
 import com.mh.starrailcheckin.ui.home.HomeScreen
-import com.mh.starrailcheckin.ui.more.MoreScreen
 import com.mh.starrailcheckin.ui.profile.EnkaInputActivity
 import com.mh.starrailcheckin.ui.profile.ProfileScreen
 import com.mh.starrailcheckin.ui.settings.SettingsScreen
@@ -62,6 +61,8 @@ import com.mh.starrailcheckin.ui.theme.StarRailCheckinTheme
 import com.mh.starrailcheckin.util.Prefs
 import com.mh.starrailcheckin.util.NotifyHelper
 import com.mh.starrailcheckin.util.AppForeground
+import com.mh.starrailcheckin.util.AppScope
+import com.mh.starrailcheckin.util.LogHelper
 import com.mh.starrailcheckin.util.CheckinHelper
 import com.mh.starrailcheckin.util.UsageStatsHelper
 import com.mh.starrailcheckin.network.MicaApi
@@ -75,6 +76,7 @@ import top.yukonga.miuix.kmp.overlay.OverlayDialog
 import top.yukonga.miuix.kmp.basic.TextButton
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.delay
+import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 
 class MainActivity : ComponentActivity() {
@@ -92,24 +94,25 @@ class MainActivity : ComponentActivity() {
         runCatching { com.mh.starrailcheckin.util.AlarmHelper.registerAllAlarms(this) }
 
         // 打开 App 时顺带检查每日自动签到（到达设定时间且今天未成功才执行）
-        Thread {
-            runCatching { com.mh.starrailcheckin.util.SignHelper.autoSignIfDue(this) }
-        }.start()
+        AppScope.scope.launch {
+            runCatching { com.mh.starrailcheckin.util.SignHelper.autoSignIfDue(this@MainActivity) }
+                .onFailure { LogHelper.e("Main", "启动签到补判异常", it) }
+        }
 
         // 冷启动方案2 补判：未打卡则 force 刷新一次天数，走统一判定（+1 及以上立即落标记）
-        Thread {
+        AppScope.scope.launch {
             runCatching {
-                if (Prefs.checkinScheme(this) == 2 && !Prefs.isScheme2Checked(this)) {
-                    val stats = MicaApi.fetchPlayerStats(this, force = true)
-                    val openedToday = UsageStatsHelper.getTodayGameUsage(this).opened
-                    CheckinHelper.noteDaysFetched(this, stats.activeDays, openedToday)
-                    CheckinHelper.checkAndMarkChecked(this, stats.activeDays)
+                if (Prefs.checkinScheme(this@MainActivity) == 2 && !Prefs.isScheme2Checked(this@MainActivity)) {
+                    val stats = MicaApi.fetchPlayerStats(this@MainActivity, force = true)
+                    val openedToday = UsageStatsHelper.getTodayGameUsage(this@MainActivity).opened
+                    CheckinHelper.noteDaysFetched(this@MainActivity, stats.activeDays, openedToday)
+                    CheckinHelper.checkAndMarkChecked(this@MainActivity, stats.activeDays)
                 }
-            }
-        }.start()
+            }.onFailure { LogHelper.e("Main", "冷启动方案2 补判异常", it) }
+        }
 
         // 15 分钟周期兜底任务（WorkManager 托管，进程被杀后仍会被拉起）
-        runCatching { com.mh.starrailcheckin.util.RemindWorker.schedule(this) }
+        runCatching { com.mh.starrailcheckin.util.TaskScheduler.setupPeriodicTasks(this) }
         // 凌晨基准固化闹钟自检（3:50/3:55/3:59）
         runCatching { com.mh.starrailcheckin.util.AlarmHelper.ensureBaselineAlarm(this) }
 
@@ -142,7 +145,7 @@ class MainActivity : ComponentActivity() {
         super.onStart()
         AppForeground.isForeground = true
         // 回前台自愈：WM 周期任务 / 兜底闹钟若被系统清除，此处幂等重排
-        runCatching { com.mh.starrailcheckin.util.RemindWorker.schedule(this) }
+        runCatching { com.mh.starrailcheckin.util.TaskScheduler.setupPeriodicTasks(this) }
         runCatching { com.mh.starrailcheckin.util.AlarmHelper.ensurePeriodicTasksAlarm(this) }
         runCatching { com.mh.starrailcheckin.util.AlarmHelper.ensureBaselineAlarm(this) }
         // 回前台本地兜底判定：未打卡则用本地缓存天数走一次统一判定；联网刷新交给 Worker / 我的页
@@ -163,7 +166,7 @@ class MainActivity : ComponentActivity() {
 @Composable
 fun AppMain() {
     var selectedTab by remember { mutableIntStateOf(0) }
-    var currentScreen by remember { mutableIntStateOf(0) } // 0=主页, 2=个人, 3=设置, 4=引导页, 6=更多
+    var currentScreen by remember { mutableIntStateOf(0) } // 0=主界面（含底部 Tab）, 4=引导页；其余二级页走独立 Activity
     val context = LocalContext.current
     val guideFinished by Prefs.getGuideFinished(context).collectAsState(initial = null)
     val amoledState by Prefs.getAmoledDark(context).collectAsState(initial = false)
@@ -276,7 +279,11 @@ fun AppMain() {
                     )
                     3 -> SettingsScreen(
                         modifier = Modifier.fillMaxSize(),
-                        onMoreClick = { currentScreen = 6 }
+                        onMoreClick = {
+                            context.startActivity(
+                                Intent(context, com.mh.starrailcheckin.ui.more.MoreActivity::class.java)
+                            )
+                        }
                     )
                 }
                 }
@@ -347,9 +354,6 @@ fun AppMain() {
                         )
                     }
                 }
-            }
-            6 -> Box(modifier = Modifier.fillMaxSize().statusBarsPadding()) {
-                MoreScreen(onBack = { currentScreen = 0 })
             }
         }
 

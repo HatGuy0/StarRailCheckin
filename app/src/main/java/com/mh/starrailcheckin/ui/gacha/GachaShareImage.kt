@@ -20,9 +20,7 @@ import java.util.Locale
  */
 object GachaShareImage {
 
-    private val standardChars = setOf(
-        "彦卿", "白露", "杰帕德", "布洛妮娅", "瓦尔特", "克拉拉", "姬子", "符玄"
-    )
+    private val standardChars = WarpPlanner.STANDARD_CHARS
 
     private data class PoolStat(val pulls: Int, val five: Int, val carry: Int)
 

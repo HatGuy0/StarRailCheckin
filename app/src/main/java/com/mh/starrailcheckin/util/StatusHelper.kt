@@ -98,6 +98,13 @@ object StatusHelper {
             else "未开启无障碍，后台留存与桌面启动检测受限"
         )
 
+        // 后台调度栈口径（只读说明）：WM 系统托管兜底 + 闹钟精确兜底 + 联网恢复补跑三栈
+        items += StatusItem(
+            "后台调度栈",
+            true,
+            "WM 兜底：提醒/体力 15min、签到/Cookie 60min；闹钟兜底 15min；联网恢复补跑"
+        )
+
         // 下次提醒时刻
         val next = nextRemindText(context)
         items += StatusItem("下次提醒", true, next)
@@ -109,9 +116,12 @@ object StatusHelper {
         val now = System.currentTimeMillis()
         val beat = Prefs.workerHeartbeatAt(context, task)
         val success = Prefs.workerSuccessAt(context, task)
+        // Guard 时间戳 = 最近一次真正拿到执行权、发起联网的时刻（区别于被触发但被跨栈去重/节流跳过的心跳）。
+        val lastRun = Prefs.lastBackgroundRunAt(context, task)
         val ok = beat > 0L && now - beat < STALE_MS
         val detail = buildString {
             append(heartbeatText(beat, what))
+            if (lastRun > 0L) append("；最近联网：${successText(lastRun)}")
             if (success > 0L) append("；最近成功：${successText(success)}")
         }
         return StatusItem(label, ok, detail)

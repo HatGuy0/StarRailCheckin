@@ -17,7 +17,6 @@ import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
-import androidx.compose.foundation.layout.statusBarsPadding
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
@@ -47,7 +46,10 @@ import com.mh.starrailcheckin.R
 import com.mh.starrailcheckin.network.MicaApi
 import com.mh.starrailcheckin.network.MicaException
 import com.mh.starrailcheckin.util.LogHelper
+import com.mh.starrailcheckin.util.UiError
 import com.mh.starrailcheckin.ui.components.AppCard
+import com.mh.starrailcheckin.ui.components.ErrorState
+import com.mh.starrailcheckin.ui.components.LoadingState
 import com.mh.starrailcheckin.ui.components.NavEventOwnerHost
 import com.mh.starrailcheckin.ui.gacha.GachaHistory
 import com.mh.starrailcheckin.ui.theme.DarkBackgroundGradient
@@ -60,10 +62,8 @@ import kotlinx.coroutines.withContext
 import org.json.JSONArray
 import top.yukonga.miuix.kmp.basic.Icon
 import top.yukonga.miuix.kmp.basic.IconButton
-import top.yukonga.miuix.kmp.basic.InfiniteProgressIndicator
 import top.yukonga.miuix.kmp.basic.Scaffold
 import top.yukonga.miuix.kmp.basic.Text
-import top.yukonga.miuix.kmp.basic.TextButton
 import top.yukonga.miuix.kmp.basic.TopAppBar
 import top.yukonga.miuix.kmp.theme.MiuixTheme
 
@@ -126,12 +126,9 @@ private fun LedgerScreen(onBack: () -> Unit) {
             result.onSuccess { list ->
                 monthsData = list.sortedByDescending { it.month }
                 selected = monthsData.firstOrNull()?.month ?: ""
-                totalPulls = countGachaPulls(context)
+                totalPulls = withContext(Dispatchers.IO) { countGachaPulls(context) }
             }.onFailure { e ->
-                error = when (e) {
-                    is MicaException -> e.message
-                    else -> e.message ?: "开拓月历获取失败"
-                }
+                error = UiError.message(e, "开拓月历获取失败")
             }
             loading = false
         }
@@ -147,7 +144,6 @@ private fun LedgerScreen(onBack: () -> Unit) {
         modifier = Modifier
             .fillMaxSize()
             .background(gradient)
-            .statusBarsPadding()
             .navigationBarsPadding()
     ) {
         TopAppBar(
@@ -171,23 +167,12 @@ private fun LedgerScreen(onBack: () -> Unit) {
             verticalArrangement = Arrangement.spacedBy(12.dp)
         ) {
             when {
-                loading && monthsData.isEmpty() -> Row(
-                    verticalAlignment = Alignment.CenterVertically,
-                    horizontalArrangement = Arrangement.Center,
-                    modifier = Modifier.fillMaxWidth().padding(24.dp)
-                ) {
-                    InfiniteProgressIndicator(modifier = Modifier.size(20.dp))
-                    Spacer(Modifier.width(10.dp))
-                    Text("正在加载月历…", color = MiuixTheme.colorScheme.onSurfaceSecondary)
-                }
+                loading && monthsData.isEmpty() -> LoadingState("正在加载月历…")
 
-                !error.isNullOrBlank() -> AppCard {
-                    Column(Modifier.padding(16.dp)) {
-                        Text(error ?: "", color = MiuixTheme.colorScheme.error)
-                        Spacer(Modifier.height(10.dp))
-                        TextButton(text = "重试", onClick = { loadAll() })
-                    }
-                }
+                !error.isNullOrBlank() -> ErrorState(
+                    message = error ?: "加载失败",
+                    onRetry = { loadAll() }
+                )
 
                 monthsData.isNotEmpty() -> {
                     LedgerRangeTitle(monthsData)

@@ -6,6 +6,7 @@ import android.webkit.JavascriptInterface
 import android.webkit.WebResourceRequest
 import android.webkit.WebView
 import android.webkit.WebViewClient
+import androidx.activity.OnBackPressedCallback
 import androidx.activity.compose.setContent
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Box
@@ -57,9 +58,19 @@ class AnnounceDetailActivity : LightBaseActivity() {
         androidx.core.view.WindowInsetsControllerCompat(window, window.decorView)
             .isAppearanceLightStatusBars = false
 
+        onBackPressedDispatcher.addCallback(this, object : OnBackPressedCallback(true) {
+            override fun handleOnBackPressed() {
+                val wv = webView
+                if (wv != null && wv.canGoBack()) wv.goBack() else {
+                    isEnabled = false
+                    onBackPressedDispatcher.onBackPressed()
+                }
+            }
+        })
+
         val postId = intent.getStringExtra("n_post_id").orEmpty()
         val title = intent.getStringExtra("n_title").orEmpty()
-        val articleUrl = "https://www.miyoushe.com/sr/article/$postId"
+        val articleUrl = "${com.mh.starrailcheckin.network.ApiHosts.WWW_MIYOUSHE}/sr/article/$postId"
 
         setContent {
             NavEventOwnerHost {
@@ -147,12 +158,6 @@ class AnnounceDetailActivity : LightBaseActivity() {
             webView = this
             loadUrl(url)
         }
-    }
-
-    @Deprecated("Deprecated in Java")
-    override fun onBackPressed() {
-        val wv = webView
-        if (wv != null && wv.canGoBack()) wv.goBack() else super.onBackPressed()
     }
 
     override fun onDestroy() {

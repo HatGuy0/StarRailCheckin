@@ -10,8 +10,8 @@ import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.unit.dp
+import com.mh.starrailcheckin.ui.theme.LocalSuccessColor
 import top.yukonga.miuix.kmp.theme.MiuixTheme
 
 /**
@@ -49,7 +49,7 @@ fun PermissionRow(
         Text(
             fixedHint ?: if (enabled) "已开启" else "未开启",
             style = MiuixTheme.textStyles.footnote1,
-            color = if (enabled) Color(0xFF4CAF50) else MiuixTheme.colorScheme.onSurfaceSecondary
+            color = if (enabled) LocalSuccessColor.current else MiuixTheme.colorScheme.onSurfaceSecondary
         )
     }
 }

@@ -4,9 +4,7 @@ import android.content.Context
 import android.net.ConnectivityManager
 import android.net.Network
 import android.net.NetworkCapabilities
-import com.mh.starrailcheckin.util.CookieHealthMonitor
-import com.mh.starrailcheckin.util.SignHelper
-import com.mh.starrailcheckin.util.StaminaMonitor
+import kotlinx.coroutines.launch
 
 /**
  * 网络恢复监听：离线期间错过的签到 / 体力 / Cookie 检查，在网络重新可用后
@@ -30,14 +28,20 @@ object NetworkMonitor {
                 val now = System.currentTimeMillis()
                 if (now - lastRestoreRunAt < RESTORE_THROTTLE_MS) return
                 lastRestoreRunAt = now
-                Thread {
-                    runCatching { SignHelper.autoSignIfDue(appCtx) }
-                        .onFailure { LogHelper.e("NetworkMonitor", "网络恢复补跑签到失败", it) }
-                    runCatching { StaminaMonitor.check(appCtx) }
-                        .onFailure { LogHelper.e("NetworkMonitor", "网络恢复补跑体力失败", it) }
-                    runCatching { CookieHealthMonitor.checkIfDue(appCtx) }
-                        .onFailure { LogHelper.e("NetworkMonitor", "网络恢复补跑 Cookie 失败", it) }
-                }.start()
+                AppScope.scope.launch {
+                    if (BackgroundRunGuard.tryAcquire(appCtx, Prefs.TASK_SIGN)) {
+                        runCatching { SignHelper.autoSignIfDue(appCtx) }
+                            .onFailure { LogHelper.e("NetworkMonitor", "网络恢复补跑签到失败", it) }
+                    }
+                    if (BackgroundRunGuard.tryAcquire(appCtx, Prefs.TASK_STAMINA)) {
+                        runCatching { StaminaMonitor.check(appCtx) }
+                            .onFailure { LogHelper.e("NetworkMonitor", "网络恢复补跑体力失败", it) }
+                    }
+                    if (BackgroundRunGuard.tryAcquire(appCtx, Prefs.TASK_COOKIE)) {
+                        runCatching { CookieHealthMonitor.checkIfDue(appCtx) }
+                            .onFailure { LogHelper.e("NetworkMonitor", "网络恢复补跑 Cookie 失败", it) }
+                    }
+                }
             }
         }
         runCatching { cm.registerDefaultNetworkCallback(callback) }

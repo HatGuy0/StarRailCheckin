@@ -117,31 +117,36 @@ object BackupHelper {
         }
 
         val ed = Prefs.sp(context).edit().clear()
+        var skipped = 0
         parsed.forEach { (k, t, v) ->
             when (t) {
-                "s" -> ed.putString(k, v as String)
-                "i" -> ed.putInt(k, v as Int)
-                "l" -> ed.putLong(k, v as Long)
-                "f" -> ed.putFloat(k, v as Float)
-                "b" -> ed.putBoolean(k, v as Boolean)
-                "ss" -> ed.putStringSet(k, v as Set<String>)
+                "s" -> (v as? String)?.let { ed.putString(k, it) } ?: run { skipped++ }
+                "i" -> (v as? Int)?.let { ed.putInt(k, it) } ?: run { skipped++ }
+                "l" -> (v as? Long)?.let { ed.putLong(k, it) } ?: run { skipped++ }
+                "f" -> (v as? Float)?.let { ed.putFloat(k, it) } ?: run { skipped++ }
+                "b" -> (v as? Boolean)?.let { ed.putBoolean(k, it) } ?: run { skipped++ }
+                "ss" -> ed.putStringSet(k, (v as? Set<*>)?.filterIsInstance<String>().orEmpty().toSet())
+                else -> skipped++
             }
         }
         ed.commit()
 
         var gachaRestored = false
         if (gachaBytes != null) {
-            File(context.filesDir, ENTRY_GACHA).writeBytes(gachaBytes!!)
+            File(context.filesDir, ENTRY_GACHA).writeBytes(gachaBytes)
             gachaRestored = true
         }
 
         // 恢复后确保当前账号元信息与账号列表一致
         runCatching { Prefs.saveCurrentAccount(context) }
-        LogHelper.i("Backup", "恢复完成 prefs=${parsed.size} gacha=$gachaRestored")
+        val restored = parsed.size - skipped
+        LogHelper.i("Backup", "恢复完成 prefs=$restored skipped=$skipped gacha=$gachaRestored")
         return ImportSummary(
-            prefCount = parsed.size,
+            prefCount = restored,
             gachaRestored = gachaRestored,
-            message = "已恢复 ${parsed.size} 项设置" + if (gachaRestored) "与抽卡历史" else ""
+            message = "已恢复 $restored 项设置" +
+                if (gachaRestored) "与抽卡历史" else "" +
+                if (skipped > 0) "，跳过 $skipped 项异常数据" else ""
         )
     }
 }

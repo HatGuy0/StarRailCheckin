@@ -69,10 +69,8 @@ fun LiquidBottomTabs(
     val isLightTheme = !dark
     // 选中态强调色取 Miuix primary
     val accentColor = MiuixTheme.colorScheme.primary
-    // 底栏容器：对齐官方遮罩量级 0.4f（玻璃滑块采样链路不动）
-    val containerColor =
-        if (isLightTheme) Color(0xFFFAFAFA).copy(0.4f)
-        else Color(0xFF121212).copy(0.4f)
+    // 底栏容器：对齐官方遮罩量级 0.4f（玻璃滑块采样链路不动）；底色跟随主题，AMOLED 纯黑模式一并生效
+    val containerColor = MiuixTheme.colorScheme.background.copy(0.4f)
 
     val tabsBackdrop = rememberLayerBackdrop()
 

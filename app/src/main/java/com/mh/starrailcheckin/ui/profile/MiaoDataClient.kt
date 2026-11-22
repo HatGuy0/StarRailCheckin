@@ -1,6 +1,7 @@
 package com.mh.starrailcheckin.ui.profile
 
 import android.content.Context
+import com.mh.starrailcheckin.network.ApiHosts
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 import org.json.JSONObject
@@ -27,10 +28,10 @@ object MiaoDataClient {
         val enc = URLEncoder.encode(charName, "UTF-8")
         val path = "resources/meta-sr/character/$enc/data.json"
         return listOf(
-            "https://raw.githubusercontent.com/yoimiya-kokomi/miao-plugin/master/$path",
-            "https://gh-proxy.com/https://raw.githubusercontent.com/yoimiya-kokomi/miao-plugin/master/$path",
-            "https://ghfast.top/https://raw.githubusercontent.com/yoimiya-kokomi/miao-plugin/master/$path",
-            "https://cdn.jsdelivr.net/gh/yoimiya-kokomi/miao-plugin@master/$path"
+            "${ApiHosts.GITHUB_RAW_MIAO}/$path",
+            "${ApiHosts.GH_PROXIES[0]}${ApiHosts.GITHUB_RAW_MIAO}/$path",
+            "${ApiHosts.GH_PROXIES[1]}${ApiHosts.GITHUB_RAW_MIAO}/$path",
+            "${ApiHosts.JSDELIVERT_MIAO}/$path"
         )
     }
 

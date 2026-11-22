@@ -1,95 +1,133 @@
 package com.mh.starrailcheckin.ui.profile
 
-import android.graphics.Outline
-import android.graphics.drawable.GradientDrawable
 import android.os.Bundle
-import android.view.Gravity
-import android.view.View
-import android.view.ViewOutlineProvider
 import android.widget.ImageView
-import android.widget.LinearLayout
-import android.widget.TextView
 import android.widget.Toast
+import androidx.activity.compose.setContent
+import androidx.compose.foundation.Image
+import androidx.compose.foundation.background
+import androidx.compose.foundation.clickable
+import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.WindowInsets
+import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.statusBarsPadding
+import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.shape.CircleShape
+import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.foundation.verticalScroll
+import androidx.compose.runtime.Composable
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
+import androidx.compose.ui.Alignment
+import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
+import androidx.compose.ui.graphics.Brush
+import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.layout.ContentScale
+import androidx.compose.ui.res.painterResource
+import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextOverflow
+import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
+import androidx.compose.ui.viewinterop.AndroidView
 import com.mh.starrailcheckin.R
 import com.mh.starrailcheckin.ui.LightBaseActivity
-import com.mh.starrailcheckin.util.LogHelper
+import com.mh.starrailcheckin.ui.components.NavEventOwnerHost
+import com.mh.starrailcheckin.ui.theme.StarRailCheckinTheme
 import org.json.JSONObject
+import top.yukonga.miuix.kmp.basic.Icon
+import top.yukonga.miuix.kmp.basic.IconButton
+import top.yukonga.miuix.kmp.basic.Scaffold
+import top.yukonga.miuix.kmp.basic.Text
 
 /**
  * 练度总览 + 遗器仓库（方向一 / 方向二）。
  * 复用橱窗 raw_json 全量数据，跨角色聚合练度梯队，并平铺全部遗器供筛选排序。
  * 评分口径与 EnkaShowcaseActivity 一致（RelicScorer，miao 规则）。
+ *
+ * D-1：由 View/XML 迁移到 Compose；解析/聚合/评分保留为纯 Kotlin 逻辑，UI 只渲染。
  */
 class EnkaOverviewActivity : LightBaseActivity() {
 
     private lateinit var rootJson: JSONObject
     private val charList = mutableListOf<JSONObject>()
 
-    private var currentTab = 0 // 0=练度总览 1=遗器仓库
-    private var relicFilterType = 0 // 0=全部 1..6=部位
-    private var sortMode = 0 // 0=评分 1=双暴 2=等级
-
     private val summaries = mutableListOf<CharSummary>()
     private val relicEntries = mutableListOf<RelicEntry>()
+    private var playerTitle: String = ""
 
-    // 配色（与单角色面板一致）
-    private val bgDeep = 0xFFF0EDF7.toInt()
-    private val textWhite = 0xFFEDEBFA.toInt()
-    private val textGray = 0xFFA39DBA.toInt()
-    private val accentGold = 0xFFF5B041.toInt()
-    private val accentGreen = 0xFF2ECC71.toInt()
-    private val accentRed = 0xFFE74C3C.toInt()
-    private val accentBlue = 0xFF5DADE2.toInt()
-    private val primaryColor = 0xFF7B6CF6.toInt()
-
-    private data class CharSummary(
-        val aid: Int, val name: String, val level: Int, val rank: Int,
-        val element: String, val path: String,
-        val hasLc: Boolean, val lcName: String, val lcLevel: Int, val lcRank: Int,
-        val relicCount: Int, val avgScore: Double, val grade: String,
-        val skillMax: Int, val skillCount: Int, val tier: String,
-        val raw: JSONObject
-    )
-
-    private data class RelicEntry(
-        val charName: String, val charAid: Int,
-        val relic: JSONObject, val score: Double, val grade: String, val fail: Int,
-        val setID: Int, val type: Int, val setName: String,
-        val critSum: Double, val level: Int
-    )
+    // 配色（与单角色面板一致，深色星空底 + 浅色文字）
+    private val textWhite = Color(0xFFEDEBFA)
+    private val textGray = Color(0xFFA39DBA)
+    private val accentGold = Color(0xFFF5B041)
+    private val accentGreen = Color(0xFF2ECC71)
+    private val accentRed = Color(0xFFE74C3C)
+    private val accentBlue = Color(0xFF5DADE2)
+    private val primaryColor = Color(0xFF7B6CF6)
+    private val cardBg = Color(0x14FFFFFF)
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         androidx.core.view.WindowInsetsControllerCompat(window, window.decorView)
             .isAppearanceLightStatusBars = false
-        setContentView(R.layout.activity_enka_overview)
 
         val raw = intent.getStringExtra("raw_json").orEmpty()
         if (raw.isBlank()) { finish(); return }
-        rootJson = try { JSONObject(raw) } catch (e: Exception) {
+        rootJson = try {
+            JSONObject(raw)
+        } catch (e: Exception) {
             Toast.makeText(this, "面板数据已损坏，无法查看", Toast.LENGTH_SHORT).show(); finish(); return
         }
 
         EnkaNameMap.load(applicationContext)
 
         val chars = rootJson.optJSONObject("detailInfo")?.optJSONArray("avatarDetailList")
-        if (chars == null || chars.length() == 0) {
-            findViewById<TextView>(R.id.tvOverviewPlayer).text = "该玩家未展示角色"
-            return
+        if (chars != null && chars.length() > 0) {
+            for (i in 0 until chars.length()) chars.optJSONObject(i)?.let { charList.add(it) }
+            buildSummaries()
+            buildRelicEntries()
         }
-        for (i in 0 until chars.length()) chars.optJSONObject(i)?.let { charList.add(it) }
+        renderPlayerTitle()
 
-        buildSummaries()
-        buildRelicEntries()
-        renderPlayer()
-        renderTabs()
-        switchTab(0)
-
-        findViewById<TextView>(R.id.btnOverviewBack).setOnClickListener { finish() }
-        findViewById<TextView>(R.id.btnOverviewSort).setOnClickListener { cycleSort() }
+        setContent {
+            NavEventOwnerHost {
+                StarRailCheckinTheme(darkTheme = false, forceDark = true) {
+                    Scaffold(
+                        containerColor = Color.Transparent,
+                        contentWindowInsets = WindowInsets(0, 0, 0, 0)
+                    ) {
+                        OverviewScreen(
+                            playerTitle = playerTitle,
+                            summaries = summaries,
+                            relicEntries = relicEntries,
+                            textWhite = textWhite,
+                            textGray = textGray,
+                            accentGold = accentGold,
+                            accentGreen = accentGreen,
+                            accentRed = accentRed,
+                            accentBlue = accentBlue,
+                            primaryColor = primaryColor,
+                            cardBg = cardBg,
+                            onBack = { finish() }
+                        )
+                    }
+                }
+            }
+        }
     }
 
-    // ---------------- 数据聚合 ----------------
+    // ---------------- 数据聚合（纯 Kotlin，不触碰 View） ----------------
 
     private fun baseAttrsOf(c: JSONObject): Triple<Double, Double, Double> {
         var hp = 1200.0; var atk = 600.0; var def = 500.0
@@ -146,7 +184,7 @@ class EnkaOverviewActivity : LightBaseActivity() {
 
             val eq = c.optJSONObject("equipment")
             val hasLc = eq != null && eq.optInt("tid", 0) != 0
-            val lcName = if (hasLc) EnkaNameMap.lcName(eq!!.optInt("tid", 0)) else "未装备光锥"
+            val lcName = if (hasLc) EnkaNameMap.lcName(eq.optInt("tid", 0)) else "未装备光锥"
             val lcLevel = eq?.optInt("level", 0) ?: 0
             val lcRank = eq?.optInt("rank", 0) ?: 0
 
@@ -211,413 +249,574 @@ class EnkaOverviewActivity : LightBaseActivity() {
         }
     }
 
-    // ---------------- 渲染 ----------------
-
-    private fun renderPlayer() {
+    private fun renderPlayerTitle() {
         val detail = rootJson.optJSONObject("detailInfo")
         val nick = detail?.optString("nickname", "未知") ?: "未知"
         val lvl = detail?.optInt("level", 0) ?: 0
         val uid = detail?.optString("uid", "") ?: rootJson.optString("uid", "")
-        findViewById<TextView>(R.id.tvOverviewPlayer).text = "$nick  Lv.$lvl  UID:$uid  · 共 ${charList.size} 名角色"
+        playerTitle = "$nick  Lv.$lvl  UID:$uid  · 共 ${charList.size} 名角色"
     }
+}
 
-    private fun renderTabs() {
-        val row = findViewById<LinearLayout>(R.id.overviewTabRow)
-        row.removeAllViews()
-        val titles = listOf("练度总览", "遗器仓库(${relicEntries.size})")
-        titles.forEachIndexed { idx, title ->
-            val tv = TextView(this).apply {
-                text = title
-                textSize = 14f
-                setTypeface(typeface, android.graphics.Typeface.BOLD)
-                setPadding(dp(18), dp(8), dp(18), dp(8))
-                gravity = Gravity.CENTER
-                setOnClickListener { switchTab(idx) }
-                tag = idx
+internal data class CharSummary(
+    val aid: Int, val name: String, val level: Int, val rank: Int,
+    val element: String, val path: String,
+    val hasLc: Boolean, val lcName: String, val lcLevel: Int, val lcRank: Int,
+    val relicCount: Int, val avgScore: Double, val grade: String,
+    val skillMax: Int, val skillCount: Int, val tier: String,
+    val raw: JSONObject
+)
+
+internal data class RelicEntry(
+    val charName: String, val charAid: Int, val relic: JSONObject, val score: Double,
+    val grade: String, val fail: Int, val setID: Int, val type: Int,
+    val setName: String, val critSum: Double, val level: Int
+)
+
+@Composable
+private fun OverviewScreen(
+    playerTitle: String,
+    summaries: List<CharSummary>,
+    relicEntries: List<RelicEntry>,
+    textWhite: Color,
+    textGray: Color,
+    accentGold: Color,
+    accentGreen: Color,
+    accentRed: Color,
+    accentBlue: Color,
+    primaryColor: Color,
+    cardBg: Color,
+    onBack: () -> Unit
+) {
+    var currentTab by remember { mutableStateOf(0) }
+    var sortMode by remember { mutableStateOf(0) }
+    var relicFilterType by remember { mutableStateOf(0) }
+
+    Box(modifier = Modifier.fillMaxSize()) {
+        Image(
+            painter = painterResource(R.drawable.enka_bg),
+            contentDescription = null,
+            modifier = Modifier.fillMaxSize(),
+            contentScale = ContentScale.Crop
+        )
+        Box(
+            modifier = Modifier
+                .fillMaxSize()
+                .background(
+                    Brush.verticalGradient(
+                        colors = listOf(Color(0xE60A0D18), Color(0x990A0D18), Color(0xB30A0D18))
+                    )
+                )
+        )
+
+        Column(
+            modifier = Modifier
+                .fillMaxSize()
+                .verticalScroll(rememberScrollState())
+                .padding(bottom = 24.dp)
+        ) {
+            // 顶栏：返回 + 标题
+            Row(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .statusBarsPadding()
+                    .padding(start = 8.dp, end = 16.dp, top = 8.dp, bottom = 8.dp),
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                IconButton(onClick = onBack) {
+                    Icon(painter = painterResource(R.drawable.ic_back), contentDescription = "返回", tint = textWhite)
+                }
+                Spacer(Modifier.width(4.dp))
+                Text(
+                    text = "练度总览",
+                    fontSize = 17.sp,
+                    fontWeight = FontWeight.Bold,
+                    color = textWhite,
+                    modifier = Modifier.weight(1f),
+                    textAlign = androidx.compose.ui.text.style.TextAlign.Center
+                )
+                Spacer(Modifier.width(48.dp))
             }
-            row.addView(tv)
-        }
-        paintTabs()
-    }
 
-    private fun paintTabs() {
-        val row = findViewById<LinearLayout>(R.id.overviewTabRow)
-        for (i in 0 until row.childCount) {
-            val tv = row.getChildAt(i) as TextView
-            val selected = (tv.tag as Int) == currentTab
-            tv.setTextColor(if (selected) ColorWhite else textGray)
-            tv.background = GradientDrawable().apply {
-                shape = GradientDrawable.RECTANGLE
-                cornerRadius = dp(16).toFloat()
-                setColor(if (selected) primaryColor else 0x00000000)
+            // 玩家信息
+            Text(
+                text = playerTitle,
+                fontSize = 13.sp,
+                color = textGray,
+                textAlign = androidx.compose.ui.text.style.TextAlign.Center,
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(bottom = 10.dp)
+            )
+
+            // 页签
+            Row(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(horizontal = 12.dp)
+                    .padding(bottom = 12.dp),
+                horizontalArrangement = Arrangement.Center,
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                listOf("练度总览", "遗器仓库(${relicEntries.size})").forEachIndexed { idx, title ->
+                    TabCapsule(
+                        title = title,
+                        selected = currentTab == idx,
+                        textWhite = textWhite,
+                        textGray = textGray,
+                        primaryColor = primaryColor
+                    ) { currentTab = idx }
+                }
             }
+
+            // 遗器仓库筛选行（总览页签隐藏）
+            if (currentTab == 1) {
+                Row(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(horizontal = 12.dp)
+                        .padding(bottom = 10.dp),
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Row(
+                        modifier = Modifier.weight(1f),
+                        horizontalArrangement = Arrangement.spacedBy(6.dp)
+                    ) {
+                        listOf("全部", "头", "手", "衣", "鞋", "球", "绳").forEachIndexed { idx, label ->
+                            FilterChip(
+                                label = label,
+                                selected = relicFilterType == idx,
+                                textWhite = textWhite,
+                                textGray = textGray,
+                                primaryColor = primaryColor,
+                                cardBg = cardBg
+                            ) { relicFilterType = idx }
+                        }
+                    }
+                    Text(
+                        text = when (sortMode) { 1 -> "排序:双暴"; 2 -> "排序:等级"; else -> "排序:评分" },
+                        fontSize = 11.sp,
+                        color = accentBlue,
+                        modifier = Modifier.padding(start = 10.dp)
+                    )
+                    Text(
+                        text = "⟳",
+                        fontSize = 13.sp,
+                        color = accentBlue,
+                        modifier = Modifier
+                            .padding(start = 4.dp)
+                            .clickable { sortMode = (sortMode + 1) % 3 }
+                    )
+                }
+            }
+
+            if (currentTab == 0) {
+                OverviewTab(
+                    summaries = summaries,
+                    textWhite = textWhite,
+                    textGray = textGray,
+                    accentGold = accentGold,
+                    accentGreen = accentGreen,
+                    accentBlue = accentBlue,
+                    cardBg = cardBg,
+                    gradeColor = { g -> gradeColor(g, accentGold, accentRed, accentBlue, accentGreen, textGray) }
+                )
+            } else {
+                RelicRepoTab(
+                    relicEntries = relicEntries,
+                    filterType = relicFilterType,
+                    sortMode = sortMode,
+                    textWhite = textWhite,
+                    textGray = textGray,
+                    accentGold = accentGold,
+                    accentGreen = accentGreen,
+                    accentBlue = accentBlue,
+                    cardBg = cardBg,
+                    gradeColor = { g -> gradeColor(g, accentGold, accentRed, accentBlue, accentGreen, textGray) }
+                )
+            }
+
+            Text(
+                text = "数据来自 Mihomo（鳄梨）第三方服务 · 评分仅供参考",
+                fontSize = 11.sp,
+                color = textGray,
+                textAlign = androidx.compose.ui.text.style.TextAlign.Center,
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(top = 16.dp)
+            )
         }
     }
+}
 
-    private fun switchTab(idx: Int) {
-        currentTab = idx
-        paintTabs()
-        findViewById<LinearLayout>(R.id.overviewFilterRow).visibility =
-            if (idx == 1) View.VISIBLE else View.GONE
-        val container = findViewById<LinearLayout>(R.id.overviewContainer)
-        container.removeAllViews()
-        if (idx == 0) renderOverview(container) else renderRelicRepo()
-    }
+@Composable
+private fun TabCapsule(
+    title: String,
+    selected: Boolean,
+    textWhite: Color,
+    textGray: Color,
+    primaryColor: Color,
+    onClick: () -> Unit
+) {
+    Text(
+        text = title,
+        fontSize = 14.sp,
+        fontWeight = FontWeight.Bold,
+        color = if (selected) textWhite else textGray,
+        modifier = Modifier
+            .padding(horizontal = 6.dp)
+            .clip(RoundedCornerShape(16.dp))
+            .background(if (selected) primaryColor else Color.Transparent)
+            .clickable(onClick = onClick)
+            .padding(horizontal = 18.dp, vertical = 8.dp)
+    )
+}
 
-    // ---------------- 练度总览 ----------------
+@Composable
+private fun FilterChip(
+    label: String,
+    selected: Boolean,
+    textWhite: Color,
+    textGray: Color,
+    primaryColor: Color,
+    cardBg: Color,
+    onClick: () -> Unit
+) {
+    Text(
+        text = label,
+        fontSize = 12.sp,
+        color = if (selected) textWhite else textGray,
+        modifier = Modifier
+            .clip(RoundedCornerShape(12.dp))
+            .background(if (selected) primaryColor else cardBg)
+            .clickable(onClick = onClick)
+            .padding(horizontal = 12.dp, vertical = 6.dp)
+    )
+}
 
-    private fun renderOverview(container: LinearLayout) {
+@Composable
+private fun OverviewTab(
+    summaries: List<CharSummary>,
+    textWhite: Color,
+    textGray: Color,
+    accentGold: Color,
+    accentGreen: Color,
+    accentBlue: Color,
+    cardBg: Color,
+    gradeColor: (String) -> Color
+) {
+    Column(modifier = Modifier.padding(horizontal = 12.dp)) {
+        if (summaries.isEmpty()) {
+            EmptyTip("暂无角色数据", textGray)
+            return@Column
+        }
         val done = summaries.count { it.tier == "成型" }
         val growing = summaries.count { it.tier == "培养中" }
         val wait = summaries.count { it.tier == "待养成" }
 
         // 汇总卡
-        val summaryCard = card()
-        val sumRow = LinearLayout(this).apply {
-            orientation = LinearLayout.HORIZONTAL
-            gravity = Gravity.CENTER_VERTICAL
-            setPadding(dp(14), dp(12), dp(14), dp(12))
-        }
-        sumRow.addView(metricCol("${summaries.size}", "角色总数", textWhite))
-        sumRow.addView(metricCol("$done", "成型", accentGreen))
-        sumRow.addView(metricCol("$growing", "培养中", accentBlue))
-        sumRow.addView(metricCol("$wait", "待养成", accentGold))
-        summaryCard.addView(sumRow)
-        container.addView(summaryCard)
-
-        if (summaries.isEmpty()) {
-            container.addView(emptyTip("暂无角色数据"))
-            return
+        Row(
+            modifier = Modifier
+                .fillMaxWidth()
+                .clip(RoundedCornerShape(14.dp))
+                .background(cardBg)
+                .padding(horizontal = 14.dp, vertical = 12.dp),
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            MetricCol("${summaries.size}", "角色总数", textWhite, textGray, Modifier.weight(1f))
+            MetricCol("$done", "成型", accentGreen, textGray, Modifier.weight(1f))
+            MetricCol("$growing", "培养中", accentBlue, textGray, Modifier.weight(1f))
+            MetricCol("$wait", "待养成", accentGold, textGray, Modifier.weight(1f))
         }
 
+        Spacer(Modifier.height(10.dp))
         summaries.forEach { s ->
-            container.addView(buildCharCard(s))
+            CharCard(
+                s = s,
+                textWhite = textWhite,
+                textGray = textGray,
+                accentGold = accentGold,
+                accentGreen = accentGreen,
+                accentBlue = accentBlue,
+                cardBg = cardBg,
+                gradeColor = gradeColor
+            )
         }
     }
-
-    private fun metricCol(value: String, label: String, color: Int): LinearLayout {
-        val col = LinearLayout(this).apply {
-            orientation = LinearLayout.VERTICAL
-            gravity = Gravity.CENTER
-            layoutParams = LinearLayout.LayoutParams(0, LinearLayout.LayoutParams.WRAP_CONTENT, 1f)
-        }
-        col.addView(TextView(this).apply {
-            text = value; setTextColor(color); textSize = 20f
-            setTypeface(typeface, android.graphics.Typeface.BOLD); gravity = Gravity.CENTER
-        })
-        col.addView(TextView(this).apply {
-            text = label; setTextColor(textGray); textSize = 11f; gravity = Gravity.CENTER
-        })
-        return col
-    }
-
-    private fun buildCharCard(s: CharSummary): View {
-        val card = card()
-        val row = LinearLayout(this).apply {
-            orientation = LinearLayout.HORIZONTAL
-            gravity = Gravity.CENTER_VERTICAL
-            setPadding(dp(12), dp(12), dp(12), dp(12))
-        }
-
-        val avatar = ImageView(this).apply {
-            layoutParams = LinearLayout.LayoutParams(dp(54), dp(54)).apply { marginEnd = dp(12) }
-            scaleType = ImageView.ScaleType.CENTER_CROP
-            background = GradientDrawable().apply {
-                shape = GradientDrawable.OVAL; setColor(bgDeep)
-            }
-            outlineProvider = object : ViewOutlineProvider() {
-                override fun getOutline(view: View, outline: Outline) = outline.setOval(0, 0, view.width, view.height)
-            }
-            clipToOutline = true
-        }
-        EnkaImageLoader.loadAvatar(this, s.aid, avatar)
-        row.addView(avatar)
-
-        val col = LinearLayout(this).apply {
-            orientation = LinearLayout.VERTICAL
-            layoutParams = LinearLayout.LayoutParams(0, LinearLayout.LayoutParams.WRAP_CONTENT, 1f)
-        }
-
-        val nameRow = LinearLayout(this).apply { orientation = LinearLayout.HORIZONTAL; gravity = Gravity.CENTER_VERTICAL }
-        nameRow.addView(TextView(this).apply {
-            text = s.name; setTextColor(textWhite); textSize = 15f
-            setTypeface(typeface, android.graphics.Typeface.BOLD); maxLines = 1
-        })
-        nameRow.addView(TextView(this).apply {
-            text = "  LV.${s.level}"; setTextColor(accentGold); textSize = 11f
-        })
-        col.addView(nameRow)
-
-        val elemPath = listOf(s.element, s.path).filter { it.isNotBlank() }.joinToString(" · ")
-        if (elemPath.isNotBlank()) col.addView(TextView(this).apply {
-            text = elemPath; setTextColor(textGray); textSize = 11f
-        })
-
-        val lcText = if (s.hasLc) "${s.lcName} Lv.${s.lcLevel} 叠影${s.lcRank}" else "未装备光锥"
-        col.addView(TextView(this).apply {
-            text = lcText; setTextColor(textGray); textSize = 11f; maxLines = 1
-        })
-
-        val relicText = if (s.relicCount > 0)
-            "遗器 ${fmt1(s.avgScore)} · ${s.grade}（${s.relicCount}件）"
-        else "未穿戴遗器"
-        col.addView(TextView(this).apply {
-            text = relicText; setTextColor(gradeColor(s.grade)); textSize = 12f
-            setTypeface(typeface, android.graphics.Typeface.BOLD)
-        })
-
-        row.addView(col)
-
-        // 右侧档位 + 技能
-        val right = LinearLayout(this).apply {
-            orientation = LinearLayout.VERTICAL
-            gravity = Gravity.CENTER_VERTICAL
-        }
-        val tierColor = when (s.tier) {
-            "成型" -> accentGreen; "培养中" -> accentBlue; else -> accentGold
-        }
-        right.addView(TextView(this).apply {
-            text = s.tier; setTextColor(ColorWhite); textSize = 11f
-            setTypeface(typeface, android.graphics.Typeface.BOLD)
-            setPadding(dp(10), dp(3), dp(10), dp(3))
-            background = GradientDrawable().apply {
-                shape = GradientDrawable.RECTANGLE; cornerRadius = dp(10).toFloat(); setColor(tierColor)
-            }
-        })
-        if (s.skillCount > 0) right.addView(TextView(this).apply {
-            text = "技能最高 ${s.skillMax} 级"; setTextColor(textGray); textSize = 10f
-            layoutParams = LinearLayout.LayoutParams(
-                LinearLayout.LayoutParams.WRAP_CONTENT, LinearLayout.LayoutParams.WRAP_CONTENT
-            ).apply { topMargin = dp(6) }
-        })
-        row.addView(right)
-
-        card.addView(row)
-        return card
-    }
-
-    // ---------------- 遗器仓库 ----------------
-
-    private fun renderRelicRepo() {
-        val container = findViewById<LinearLayout>(R.id.overviewContainer) ?: return
-        try {
-            container.removeAllViews()
-            renderFilterChips()
-            val filtered = relicEntries.filter { relicFilterType == 0 || it.type == relicFilterType }
-            val sorted = when (sortMode) {
-                1 -> filtered.sortedByDescending { it.critSum }
-                2 -> filtered.sortedByDescending { it.level }
-                else -> filtered.sortedByDescending { it.score }
-            }
-
-            // 重复件统计：同 setID + type
-            val dupKeys = filtered.groupingBy { "${it.setID}_${it.type}" }.eachCount().filter { it.value > 1 }.keys
-
-            if (sorted.isEmpty()) {
-                container.addView(emptyTip("该部位暂无遗器"))
-                return
-            }
-            for (e in sorted) {
-                runCatching {
-                    container.addView(buildRelicCard(e, dupKeys.contains("${e.setID}_${e.type}")))
-                }.onFailure { LogHelper.e("Enka", "单件遗器卡片渲染失败", it) }
-            }
-        } catch (t: Throwable) {
-            LogHelper.e("Enka", "遗器仓库渲染失败", t)
-            container.removeAllViews()
-            container.addView(emptyTip("仓库渲染异常：${t.javaClass.simpleName}（已记录日志）"))
-        }
-    }
-
-    private fun renderFilterChips() {
-        val chips = findViewById<LinearLayout>(R.id.overviewFilterChips) ?: return
-        chips.removeAllViews()
-        val labels = listOf("全部", "头", "手", "衣", "鞋", "球", "绳")
-        labels.forEachIndexed { idx, label ->
-            val tv = TextView(this).apply {
-                text = label; textSize = 12f; setPadding(dp(12), dp(6), dp(12), dp(6))
-                setOnClickListener { relicFilterType = idx; renderRelicRepo() }
-                tag = idx
-            }
-            paintChip(tv, relicFilterType == idx)
-            chips.addView(tv)
-        }
-    }
-
-    private fun cycleSort() {
-        sortMode = (sortMode + 1) % 3
-        val label = when (sortMode) { 1 -> "排序:双暴"; 2 -> "排序:等级"; else -> "排序:评分" }
-        findViewById<TextView>(R.id.btnOverviewSort)?.text = label
-        renderRelicRepo()
-    }
-
-    private fun buildRelicCard(e: RelicEntry, duplicated: Boolean): View {
-        val card = card()
-        val row = LinearLayout(this).apply {
-            orientation = LinearLayout.HORIZONTAL
-            gravity = Gravity.CENTER_VERTICAL
-            setPadding(dp(12), dp(10), dp(12), dp(10))
-        }
-
-        val icon = ImageView(this).apply {
-            layoutParams = LinearLayout.LayoutParams(dp(42), dp(42)).apply { marginEnd = dp(10) }
-            scaleType = ImageView.ScaleType.CENTER_CROP
-        }
-        EnkaImageLoader.loadRelic(this, e.setID, e.type, icon)
-        row.addView(icon)
-
-        val col = LinearLayout(this).apply {
-            orientation = LinearLayout.VERTICAL
-            layoutParams = LinearLayout.LayoutParams(0, LinearLayout.LayoutParams.WRAP_CONTENT, 1f)
-        }
-        val topLine = listOf(partName(e.type), e.setName.ifBlank { "遗器${e.setID}" }).filter { it.isNotBlank() }.joinToString(" · ")
-        col.addView(TextView(this).apply {
-            text = topLine; setTextColor(textWhite); textSize = 13f
-            setTypeface(typeface, android.graphics.Typeface.BOLD); maxLines = 1
-        })
-        col.addView(TextView(this).apply {
-            text = "${e.charName}  ·  +${e.level}"; setTextColor(textGray); textSize = 11f
-        })
-
-        // 主词条
-        val flat = e.relic.optJSONObject("_flat")
-        val props = flat?.optJSONArray("props")
-        val main = props?.optJSONObject(0)
-        if (main != null) {
-            col.addView(TextView(this).apply {
-                text = "主词条 ${propLabel(main.optString("type", ""))}  ${propValueText(main)}"
-                setTextColor(accentBlue); textSize = 11f
-            })
-        }
-
-        // 副词条逐行（名称 + 强化次数标记 + 数值）
-        val subsArr = e.relic.optJSONArray("subAffixList")
-        if (props != null) {
-            for (j in 1 until props.length()) {
-                val p = props.optJSONObject(j) ?: continue
-                val ptype = p.optString("type", "")
-                if (ptype.isBlank()) continue
-                val cnt = subsArr?.optJSONObject(j - 1)?.optInt("cnt", 0) ?: 0
-                val valid = RelicScorer.isValidType(ptype, e.charAid)
-
-                val subRow = LinearLayout(this).apply {
-                    orientation = LinearLayout.HORIZONTAL
-                    gravity = Gravity.CENTER_VERTICAL
-                }
-                subRow.addView(TextView(this).apply {
-                    text = propLabel(ptype)
-                    setTextColor(textGray); textSize = 10f
-                    layoutParams = LinearLayout.LayoutParams(0, LinearLayout.LayoutParams.WRAP_CONTENT, 1f)
-                })
-                subRow.addView(TextView(this).apply {
-                    text = if (cnt >= 3) ">>" else ">"
-                    setTextColor(if (cnt >= 3) accentGold else textGray); textSize = 9f
-                })
-                subRow.addView(TextView(this).apply {
-                    text = "+${propValueText(p)}"
-                    setTextColor(if (valid) accentGreen else textGray); textSize = 10f
-                    gravity = Gravity.END
-                    layoutParams = LinearLayout.LayoutParams(0, LinearLayout.LayoutParams.WRAP_CONTENT, 1f)
-                })
-                col.addView(subRow)
-            }
-        }
-
-        val badges = mutableListOf<String>()
-        badges.add("${fmt1(e.score)} ${e.grade}")
-        if (e.fail > 0) badges.add("歪${e.fail}次")
-        if (duplicated) badges.add("重复")
-        col.addView(TextView(this).apply {
-            text = badges.joinToString("  ·  ")
-            setTextColor(gradeColor(e.grade)); textSize = 11f
-            setTypeface(typeface, android.graphics.Typeface.BOLD)
-            layoutParams = LinearLayout.LayoutParams(
-                LinearLayout.LayoutParams.WRAP_CONTENT, LinearLayout.LayoutParams.WRAP_CONTENT
-            ).apply { topMargin = dp(4) }
-        })
-
-        row.addView(col)
-        card.addView(row)
-        return card
-    }
-
-    // ---------------- 公共组件 / 工具 ----------------
-
-    private fun card(): LinearLayout = LinearLayout(this).apply {
-        orientation = LinearLayout.VERTICAL
-        layoutParams = LinearLayout.LayoutParams(
-            LinearLayout.LayoutParams.MATCH_PARENT, LinearLayout.LayoutParams.WRAP_CONTENT
-        ).apply { bottomMargin = dp(10) }
-        background = GradientDrawable().apply {
-            shape = GradientDrawable.RECTANGLE; cornerRadius = dp(14).toFloat(); setColor(0x14FFFFFF)
-        }
-    }
-
-    private fun emptyTip(text: String): TextView = TextView(this).apply {
-        this.text = text; setTextColor(textGray); textSize = 13f
-        setPadding(dp(8), dp(16), dp(8), dp(16)); gravity = Gravity.CENTER
-    }
-
-    private fun paintChip(tv: TextView, selected: Boolean) {
-        tv.setTextColor(if (selected) ColorWhite else textGray)
-        tv.background = GradientDrawable().apply {
-            shape = GradientDrawable.RECTANGLE; cornerRadius = dp(12).toFloat()
-            setColor(if (selected) primaryColor else 0x14FFFFFF)
-        }
-    }
-
-    private fun gradeColor(grade: String): Int = when (grade) {
-        "ACE", "MAX" -> 0xFFF1C40F.toInt()
-        "SSS", "SS" -> accentRed
-        "S" -> accentGold
-        "A" -> accentBlue
-        "B" -> accentGreen
-        else -> textGray
-    }
-
-    private fun partName(type: Int): String = when (type) {
-        1 -> "头部"; 2 -> "手部"; 3 -> "躯干"; 4 -> "脚部"; 5 -> "位面球"; 6 -> "连结绳"; else -> "部位$type"
-    }
-
-    private fun propLabel(type: String): String = when (type) {
-        "BaseHP", "HPDelta", "HPAddedRatio" -> "生命值"
-        "BaseAttack", "AttackDelta", "AttackAddedRatio" -> "攻击力"
-        "BaseDefence", "DefenceDelta", "DefenceAddedRatio" -> "防御力"
-        "Speed", "SpeedDelta" -> "速度"
-        "CriticalChance", "CriticalChanceBase" -> "暴击率"
-        "CriticalDamage", "CriticalDamageBase" -> "暴击伤害"
-        "StatusProbability", "StatusProbabilityBase" -> "效果命中"
-        "StatusResist", "StatusResistanceBase" -> "效果抵抗"
-        "BreakDamageAddedRatio", "BreakDamageAddedRatioBase" -> "击破特攻"
-        "PhysicalAddedRatio" -> "物理伤害加成"
-        "FireAddedRatio" -> "火属性伤害加成"
-        "IceAddedRatio" -> "冰属性伤害加成"
-        "ThunderAddedRatio" -> "雷属性伤害加成"
-        "WindAddedRatio" -> "风属性伤害加成"
-        "QuantumAddedRatio" -> "量子属性伤害加成"
-        "ImaginaryAddedRatio" -> "虚数属性伤害加成"
-        else -> type
-    }
-
-    private fun propValueText(p: JSONObject): String {
-        val disp = p.optString("display", "")
-        if (disp.isNotBlank()) return disp
-        val t = p.optString("type", "")
-        val v = p.optDouble("value", 0.0)
-        val isPct = t.endsWith("Ratio") || t == "CriticalChance" || t == "CriticalDamage" ||
-            t == "StatusProbability" || t == "StatusResist" || t == "BreakDamageAddedRatio"
-        return when {
-            isPct -> "${fmt1(v * 100)}%"
-            t.endsWith("Delta") || t.startsWith("Base") || t == "Speed" -> v.toInt().toString()
-            v < 1.0 -> "${fmt1(v * 100)}%"
-            else -> v.toInt().toString()
-        }
-    }
-
-    private fun fmt1(v: Double): String =
-        java.math.BigDecimal.valueOf(v).setScale(1, java.math.RoundingMode.HALF_EVEN).toPlainString()
-
-    private fun dp(v: Int): Int = (v * resources.displayMetrics.density).toInt()
-
-    private val ColorWhite = 0xFFFFFFFF.toInt()
 }
+
+@Composable
+private fun MetricCol(value: String, label: String, color: Color, labelColor: Color, modifier: Modifier) {
+    Column(modifier = modifier, horizontalAlignment = Alignment.CenterHorizontally) {
+        Text(value, fontSize = 20.sp, fontWeight = FontWeight.Bold, color = color)
+        Text(label, fontSize = 11.sp, color = labelColor)
+    }
+}
+
+@Composable
+private fun CharCard(
+    s: CharSummary,
+    textWhite: Color,
+    textGray: Color,
+    accentGold: Color,
+    accentGreen: Color,
+    accentBlue: Color,
+    cardBg: Color,
+    gradeColor: (String) -> Color
+) {
+    val tierColor = when (s.tier) {
+        "成型" -> accentGreen; "培养中" -> accentBlue; else -> accentGold
+    }
+    Row(
+        modifier = Modifier
+            .fillMaxWidth()
+            .padding(bottom = 10.dp)
+            .clip(RoundedCornerShape(14.dp))
+            .background(cardBg)
+            .padding(horizontal = 12.dp, vertical = 12.dp),
+        verticalAlignment = Alignment.CenterVertically
+    ) {
+        AvatarImage(aid = s.aid, modifier = Modifier.size(54.dp).padding(end = 12.dp))
+
+        Column(modifier = Modifier.weight(1f)) {
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                Text(s.name, fontSize = 15.sp, fontWeight = FontWeight.Bold, color = textWhite, maxLines = 1, overflow = TextOverflow.Ellipsis)
+                Text("  LV.${s.level}", fontSize = 11.sp, color = accentGold)
+            }
+            val elemPath = listOf(s.element, s.path).filter { it.isNotBlank() }.joinToString(" · ")
+            if (elemPath.isNotBlank()) Text(elemPath, fontSize = 11.sp, color = textGray, maxLines = 1)
+            val lcText = if (s.hasLc) "${s.lcName} Lv.${s.lcLevel} 叠影${s.lcRank}" else "未装备光锥"
+            Text(lcText, fontSize = 11.sp, color = textGray, maxLines = 1, overflow = TextOverflow.Ellipsis)
+            val relicText = if (s.relicCount > 0)
+                "遗器 ${fmt1(s.avgScore)} · ${s.grade}（${s.relicCount}件）"
+            else "未穿戴遗器"
+            Text(relicText, fontSize = 12.sp, fontWeight = FontWeight.Bold, color = gradeColor(s.grade))
+        }
+
+        Column(horizontalAlignment = Alignment.CenterHorizontally) {
+            Text(
+                s.tier,
+                fontSize = 11.sp,
+                fontWeight = FontWeight.Bold,
+                color = Color.White,
+                modifier = Modifier
+                    .clip(RoundedCornerShape(10.dp))
+                    .background(tierColor)
+                    .padding(horizontal = 10.dp, vertical = 3.dp)
+            )
+            if (s.skillCount > 0) {
+                Text("技能最高 ${s.skillMax} 级", fontSize = 10.sp, color = textGray, modifier = Modifier.padding(top = 6.dp))
+            }
+        }
+    }
+}
+
+@Composable
+private fun RelicRepoTab(
+    relicEntries: List<RelicEntry>,
+    filterType: Int,
+    sortMode: Int,
+    textWhite: Color,
+    textGray: Color,
+    accentGold: Color,
+    accentGreen: Color,
+    accentBlue: Color,
+    cardBg: Color,
+    gradeColor: (String) -> Color
+) {
+    val filtered = remember(relicEntries, filterType) {
+        relicEntries.filter { filterType == 0 || it.type == filterType }
+    }
+    val sorted = remember(filtered, sortMode) {
+        when (sortMode) {
+            1 -> filtered.sortedByDescending { it.critSum }
+            2 -> filtered.sortedByDescending { it.level }
+            else -> filtered.sortedByDescending { it.score }
+        }
+    }
+    val dupKeys = remember(filtered) {
+        filtered.groupingBy { "${it.setID}_${it.type}" }.eachCount().filter { it.value > 1 }.keys
+    }
+
+    Column(modifier = Modifier.padding(horizontal = 12.dp)) {
+        if (sorted.isEmpty()) {
+            EmptyTip("该部位暂无遗器", textGray)
+            return@Column
+        }
+        sorted.forEach { e ->
+            RelicCard(
+                e = e,
+                duplicated = dupKeys.contains("${e.setID}_${e.type}"),
+                textWhite = textWhite,
+                textGray = textGray,
+                accentGold = accentGold,
+                accentGreen = accentGreen,
+                accentBlue = accentBlue,
+                cardBg = cardBg,
+                gradeColor = gradeColor
+            )
+        }
+    }
+}
+
+@Composable
+private fun RelicCard(
+    e: RelicEntry,
+    duplicated: Boolean,
+    textWhite: Color,
+    textGray: Color,
+    accentGold: Color,
+    accentGreen: Color,
+    accentBlue: Color,
+    cardBg: Color,
+    gradeColor: (String) -> Color
+) {
+    Row(
+        modifier = Modifier
+            .fillMaxWidth()
+            .padding(bottom = 10.dp)
+            .clip(RoundedCornerShape(14.dp))
+            .background(cardBg)
+            .padding(horizontal = 12.dp, vertical = 10.dp),
+        verticalAlignment = Alignment.CenterVertically
+    ) {
+        RelicImage(setID = e.setID, type = e.type, modifier = Modifier.size(42.dp).padding(end = 10.dp))
+
+        Column(modifier = Modifier.weight(1f)) {
+            val topLine = listOf(partName(e.type), e.setName.ifBlank { "遗器${e.setID}" })
+                .filter { it.isNotBlank() }.joinToString(" · ")
+            Text(topLine, fontSize = 13.sp, fontWeight = FontWeight.Bold, color = textWhite, maxLines = 1, overflow = TextOverflow.Ellipsis)
+            Text("${e.charName}  ·  +${e.level}", fontSize = 11.sp, color = textGray)
+
+            val flat = e.relic.optJSONObject("_flat")
+            val props = flat?.optJSONArray("props")
+            val main = props?.optJSONObject(0)
+            if (main != null) {
+                Text(
+                    "主词条 ${propLabel(main.optString("type", ""))}  ${propValueText(main)}",
+                    fontSize = 11.sp, color = accentBlue
+                )
+            }
+
+            val subsArr = e.relic.optJSONArray("subAffixList")
+            if (props != null) {
+                for (j in 1 until props.length()) {
+                    val p = props.optJSONObject(j) ?: continue
+                    val ptype = p.optString("type", "")
+                    if (ptype.isBlank()) continue
+                    val cnt = subsArr?.optJSONObject(j - 1)?.optInt("cnt", 0) ?: 0
+                    val valid = RelicScorer.isValidType(ptype, e.charAid)
+                    Row(verticalAlignment = Alignment.CenterVertically) {
+                        Text(propLabel(ptype), fontSize = 10.sp, color = textGray, modifier = Modifier.weight(1f))
+                        Text(if (cnt >= 3) ">>" else ">", fontSize = 9.sp, color = if (cnt >= 3) accentGold else textGray)
+                        Text(
+                            "+${propValueText(p)}",
+                            fontSize = 10.sp,
+                            color = if (valid) accentGreen else textGray,
+                            textAlign = androidx.compose.ui.text.style.TextAlign.End,
+                            modifier = Modifier.weight(1f)
+                        )
+                    }
+                }
+            }
+
+            val badges = mutableListOf("${fmt1(e.score)} ${e.grade}")
+            if (e.fail > 0) badges.add("歪${e.fail}次")
+            if (duplicated) badges.add("重复")
+            Text(
+                badges.joinToString("  ·  "),
+                fontSize = 11.sp, fontWeight = FontWeight.Bold, color = gradeColor(e.grade),
+                modifier = Modifier.padding(top = 4.dp)
+            )
+        }
+    }
+}
+
+// ---------------- 图片桥接 ----------------
+
+@Composable
+private fun AvatarImage(aid: Int, modifier: Modifier = Modifier) {
+    AndroidView(
+        factory = { ctx ->
+            ImageView(ctx).apply { scaleType = ImageView.ScaleType.CENTER_CROP }
+        },
+        update = { iv -> EnkaImageLoader.loadAvatar(iv.context, aid, iv) },
+        modifier = modifier.clip(CircleShape)
+    )
+}
+
+@Composable
+private fun RelicImage(setID: Int, type: Int, modifier: Modifier = Modifier) {
+    AndroidView(
+        factory = { ctx ->
+            ImageView(ctx).apply { scaleType = ImageView.ScaleType.CENTER_CROP }
+        },
+        update = { iv -> EnkaImageLoader.loadRelic(iv.context, setID, type, iv) },
+        modifier = modifier
+    )
+}
+
+// ---------------- 工具 ----------------
+
+@Composable
+private fun EmptyTip(text: String, textGray: Color) {
+    Text(
+        text = text, fontSize = 13.sp, color = textGray,
+        textAlign = androidx.compose.ui.text.style.TextAlign.Center,
+        modifier = Modifier.fillMaxWidth().padding(vertical = 16.dp)
+    )
+}
+
+private fun gradeColor(
+    grade: String,
+    accentGold: Color, accentRed: Color, accentBlue: Color, accentGreen: Color, textGray: Color
+): Color = when (grade) {
+    "ACE", "MAX" -> accentGold
+    "SSS", "SS" -> accentRed
+    "S" -> accentGold
+    "A" -> accentBlue
+    "B" -> accentGreen
+    else -> textGray
+}
+
+private fun partName(type: Int): String = when (type) {
+    1 -> "头部"; 2 -> "手部"; 3 -> "躯干"; 4 -> "脚部"; 5 -> "位面球"; 6 -> "连结绳"; else -> "部位$type"
+}
+
+private fun propLabel(type: String): String = when (type) {
+    "BaseHP", "HPDelta", "HPAddedRatio" -> "生命值"
+    "BaseAttack", "AttackDelta", "AttackAddedRatio" -> "攻击力"
+    "BaseDefence", "DefenceDelta", "DefenceAddedRatio" -> "防御力"
+    "Speed", "SpeedDelta" -> "速度"
+    "CriticalChance", "CriticalChanceBase" -> "暴击率"
+    "CriticalDamage", "CriticalDamageBase" -> "暴击伤害"
+    "StatusProbability", "StatusProbabilityBase" -> "效果命中"
+    "StatusResist", "StatusResistanceBase" -> "效果抵抗"
+    "BreakDamageAddedRatio", "BreakDamageAddedRatioBase" -> "击破特攻"
+    "PhysicalAddedRatio" -> "物理伤害加成"
+    "FireAddedRatio" -> "火属性伤害加成"
+    "IceAddedRatio" -> "冰属性伤害加成"
+    "ThunderAddedRatio" -> "雷属性伤害加成"
+    "WindAddedRatio" -> "风属性伤害加成"
+    "QuantumAddedRatio" -> "量子属性伤害加成"
+    "ImaginaryAddedRatio" -> "虚数属性伤害加成"
+    else -> type
+}
+
+private fun propValueText(p: JSONObject): String {
+    val disp = p.optString("display", "")
+    if (disp.isNotBlank()) return disp
+    val t = p.optString("type", "")
+    val v = p.optDouble("value", 0.0)
+    val isPct = t.endsWith("Ratio") || t == "CriticalChance" || t == "CriticalDamage" ||
+        t == "StatusProbability" || t == "StatusResist" || t == "BreakDamageAddedRatio"
+    return when {
+        isPct -> "${fmt1(v * 100)}%"
+        t.endsWith("Delta") || t.startsWith("Base") || t == "Speed" -> v.toInt().toString()
+        v < 1.0 -> "${fmt1(v * 100)}%"
+        else -> v.toInt().toString()
+    }
+}
+
+private fun fmt1(v: Double): String =
+    java.math.BigDecimal.valueOf(v).setScale(1, java.math.RoundingMode.HALF_EVEN).toPlainString()

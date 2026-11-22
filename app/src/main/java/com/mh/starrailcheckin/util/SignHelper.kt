@@ -39,10 +39,19 @@ object SignHelper {
      * - 失败按退避策略当日重试；达到上限或判定不可重试 -> 通知一次并封死当天
      */
     fun autoSignIfDue(context: Context) {
-        if (!Prefs.autoSignEnabled(context)) return
-        if (!Prefs.isLoggedIn(context)) return
+        if (!Prefs.autoSignEnabled(context)) {
+            LogHelper.i("Sign", "自动签到开关关闭，跳过")
+            return
+        }
+        if (!Prefs.isLoggedIn(context)) {
+            LogHelper.i("Sign", "未登录，跳过自动签到")
+            return
+        }
         val today = Prefs.todayStr()
-        if (Prefs.lastSignSuccess(context) == today) return
+        if (Prefs.lastSignSuccess(context) == today) {
+            LogHelper.i("Sign", "今日已签到成功，跳过")
+            return
+        }
 
         // 今日已最终失败（认证失效/风控/重试上限），不再打扰
         if (Prefs.autoSignFinalFailedDay(context) == today) {
@@ -51,7 +60,10 @@ object SignHelper {
         }
 
         val nowHour = Calendar.getInstance().get(Calendar.HOUR_OF_DAY)
-        if (nowHour < Prefs.autoSignHour(context)) return
+        if (nowHour < Prefs.autoSignHour(context)) {
+            LogHelper.i("Sign", "未到签到时段（$nowHour < ${Prefs.autoSignHour(context)}），跳过")
+            return
+        }
 
         // 退避时刻未到
         val nextAt = Prefs.autoSignNextRetryAt(context)
@@ -68,9 +80,9 @@ object SignHelper {
         }
 
         LogHelper.i("Sign", "开始每日自动签到 uid=${Prefs.uid(context)}")
-        val result = runCatching { MicaApi.doSignWithRetry(context) }.getOrElse {
-            SignResult(false, it.message ?: "自动签到异常")
-        }
+        val result = runCatching { MicaApi.doSignWithRetry(context) }
+            .onFailure { LogHelper.e("Sign", "自动签到请求异常", it) }
+            .getOrElse { SignResult(false, UiError.message(it, "自动签到异常")) }
 
         if (result.success) {
             Prefs.markSignSuccess(context)

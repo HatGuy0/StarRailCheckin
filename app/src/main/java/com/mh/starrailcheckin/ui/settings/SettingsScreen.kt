@@ -65,6 +65,7 @@ import top.yukonga.miuix.kmp.basic.SpinnerEntry
 import top.yukonga.miuix.kmp.preference.ArrowPreference
 import top.yukonga.miuix.kmp.preference.OverlaySpinnerPreference
 import top.yukonga.miuix.kmp.preference.SwitchPreference
+import com.mh.starrailcheckin.ui.theme.LocalSuccessColor
 import top.yukonga.miuix.kmp.theme.MiuixTheme
 
 @Composable
@@ -176,6 +177,8 @@ fun SettingsScreen(modifier: Modifier = Modifier, onMoreClick: () -> Unit = {}) 
     var qrStatus by remember { mutableStateOf("") }
     var showCookieDialog by remember { mutableStateOf(false) }
     var showPermissionDialog by remember { mutableStateOf(false) }
+    // 授权状态刷新计数：从系统设置页返回 ON_RESUME 后递增，触发权限面板重算各开关状态
+    var permVersion by remember { mutableIntStateOf(0) }
     var cookieInput by remember { mutableStateOf("") }
     var cookieImporting by remember { mutableStateOf(false) }
     var cookieHealthEnabled by remember { mutableStateOf(Prefs.cookieHealthCheckEnabled(context)) }
@@ -194,7 +197,10 @@ fun SettingsScreen(modifier: Modifier = Modifier, onMoreClick: () -> Unit = {}) 
     val settingsLifecycleOwner = context as? LifecycleOwner
     DisposableEffect(settingsLifecycleOwner) {
         val observer = LifecycleEventObserver { _, event ->
-            if (event == Lifecycle.Event.ON_RESUME) cookieHealthVersion++
+            if (event == Lifecycle.Event.ON_RESUME) {
+                cookieHealthVersion++
+                permVersion++
+            }
         }
         settingsLifecycleOwner?.lifecycle?.addObserver(observer)
         onDispose { settingsLifecycleOwner?.lifecycle?.removeObserver(observer) }
@@ -572,7 +578,7 @@ fun SettingsScreen(modifier: Modifier = Modifier, onMoreClick: () -> Unit = {}) 
                         Text(
                             if (item.ok) "正常" else "待处理",
                             style = MiuixTheme.textStyles.footnote1,
-                            color = if (item.ok) Color(0xFF4CAF50) else Color(0xFFE53935)
+                            color = if (item.ok) LocalSuccessColor.current else MiuixTheme.colorScheme.error
                         )
                     }
                 }
@@ -1122,6 +1128,8 @@ fun SettingsScreen(modifier: Modifier = Modifier, onMoreClick: () -> Unit = {}) 
             title = "权限管理",
             onDismissRequest = { showPermissionDialog = false },
             content = {
+                // 读取刷新计数建立重组依赖：从系统设置返回后重算下方各授权开关状态
+                @Suppress("UNUSED_EXPRESSION") permVersion
                 Text(
                     text = "需要以下权限才能正常工作：",
                     style = MiuixTheme.textStyles.body2,
@@ -1130,7 +1138,7 @@ fun SettingsScreen(modifier: Modifier = Modifier, onMoreClick: () -> Unit = {}) 
                 Spacer(modifier = Modifier.height(8.dp))
                 PermissionRow(
                     title = "无障碍服务",
-                    desc = "保持后台打卡提醒常驻",
+                    desc = "保持后台打卡提醒常驻，不读取界面内容",
                     enabled = PermissionHelper.isAccessibilityEnabled(context, KeepAliveAccessibilityService::class.java)
                 ) { PermissionHelper.openAccessibilitySettings(context, KeepAliveAccessibilityService::class.java) }
                 PermissionRow(

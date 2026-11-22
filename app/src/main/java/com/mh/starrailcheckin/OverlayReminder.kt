@@ -3,12 +3,11 @@ package com.mh.starrailcheckin
 import android.annotation.SuppressLint
 import android.content.Context
 import android.graphics.Bitmap
-import android.graphics.BitmapFactory
 import android.net.Uri
+import com.mh.starrailcheckin.util.BitmapSampler
 import android.os.Handler
 import android.os.Looper
 import android.os.PowerManager
-import android.provider.MediaStore
 import android.view.Gravity
 import android.view.View
 import android.view.WindowManager
@@ -76,6 +75,7 @@ object OverlayReminder {
      * @return 是否成功 addView。真正的"是否显示成功"以 onFail 未被调用为准。
      */
     @SuppressLint("InflateParams")
+    @Suppress("DEPRECATION") // 悬浮窗锁屏显示/点亮屏幕仍需 FLAG_SHOW_WHEN_LOCKED/TURN_SCREEN_ON，Window 级 API 不适用悬浮窗
     fun show(
         context: Context,
         fromAlarm: Boolean,
@@ -97,8 +97,8 @@ object OverlayReminder {
             return false
         }
 
-        // 1. 播放提醒音效+持续震动（窗口失败也有声有震）
-        runCatching { RemindSound.play(appCtx) }
+        // 声音/震动不在开窗前提前播放：等下方可见性校验确认画面真正渲染出来后再接管，
+        // 避免"窗还没出来先响一通"；窗口失败则不响，由回退链路的通知系统音兜底。
 
         // 文案：设置页留空沿用默认 strings，非空覆盖标题/正文（与主弹窗一致）
         val title = Prefs.remindTitle(appCtx) ?: appCtx.getString(R.string.remind_title)
@@ -107,6 +107,8 @@ object OverlayReminder {
         val background = loadCardBackground(appCtx)
 
         val wm = appCtx.getSystemService(Context.WINDOW_SERVICE) as WindowManager
+        val pm = appCtx.getSystemService(Context.POWER_SERVICE) as PowerManager
+        val kg = appCtx.getSystemService(Context.KEYGUARD_SERVICE) as android.app.KeyguardManager
         val view = ComposeView(appCtx)
         // 裸 ComposeView 挂 WindowManager 不会自动取 Activity 的 owner，必须显式绑定，
         // 否则 Compose 不组合、视图 0×0，悬浮窗看起来"没弹出来"。
@@ -177,13 +179,22 @@ object OverlayReminder {
         val settle = object : Runnable {
             override fun run() {
                 val attached = runCatching { view.isAttachedToWindow }.getOrDefault(false)
+                val shown = runCatching { view.isShown }.getOrDefault(false)
                 val w = runCatching { view.width }.getOrDefault(0)
                 val h = runCatching { view.height }.getOrDefault(0)
-                LogHelper.i("Overlay", "可见性校验 stage=${stage + 1}/3 attached=$attached size=${w}x$h")
+                val locked = runCatching { kg.isKeyguardLocked }.getOrDefault(false)
+                val off = runCatching { !pm.isInteractive }.getOrDefault(false)
+                LogHelper.i("Overlay", "可见性校验 stage=${stage + 1}/3 attached=$attached shown=$shown size=${w}x$h locked=$locked off=$off")
                 if (attached && w > 0 && h > 0) {
                     settleTask = null
+                    // 画面确认渲染出来后再接管声音+震动，与 Activity 上屏后播放的口径一致
+                    runCatching { RemindSound.play(appCtx) }
                     if (!manualTest) Prefs.setTodayReminded(appCtx, true)
                     NotifyHelper.cancelRemindNotification(appCtx)
+                    if (!shown) {
+                        // 附着且有尺寸但视图标记不可见：常见于被锁屏/上层窗口遮挡，记录便于回归定位
+                        LogHelper.w("Overlay", "悬浮窗已挂载但 shown=false（疑似被遮挡/锁屏覆盖）")
+                    }
                     LogHelper.i("Overlay", "悬浮窗弹窗已展示 fromAlarm=$fromAlarm manualTest=$manualTest")
                     return
                 }
@@ -192,7 +203,7 @@ object OverlayReminder {
                     handler.postDelayed(this, stages[stage] - stages[stage - 1])
                 } else if (!failFired) {
                     failFired = true
-                    LogHelper.w("Overlay", "悬浮窗 2s 内仍未渲染出画面(attached=$attached ${w}x$h)，回退 Activity/通知")
+                    LogHelper.w("Overlay", "悬浮窗 2s 内仍未渲染出画面(attached=$attached shown=$shown ${w}x$h locked=$locked off=$off)，回退 Activity/通知")
                     settleTask = null
                     removeViewQuietly(wm, view)
                     onFail?.invoke()
@@ -204,7 +215,6 @@ object OverlayReminder {
 
         // 锁屏时点亮屏幕（持有引用，关闭时主动释放）
         runCatching {
-            val pm = appCtx.getSystemService(Context.POWER_SERVICE) as PowerManager
             if (!pm.isInteractive) {
                 @Suppress("DEPRECATION")
                 wakeLock = pm.newWakeLock(PowerManager.FULL_WAKE_LOCK, "StarRailCheckin:overlay").apply {
@@ -289,12 +299,13 @@ object OverlayReminder {
     private fun loadCardBackground(ctx: Context): Bitmap? {
         Prefs.remindBgPath(ctx)?.let { p ->
             if (!p.isNullOrBlank() && java.io.File(p).exists()) {
-                BitmapFactory.decodeFile(p)?.let { return it }
+                BitmapSampler.decodeFile(p, 1080)?.let { return it }
             }
         }
         Prefs.remindBgUri(ctx)?.let { s ->
-            runCatching { MediaStore.Images.Media.getBitmap(ctx.contentResolver, Uri.parse(s)) }
-                .getOrNull()?.let { return it }
+            runCatching {
+                ctx.contentResolver.openInputStream(Uri.parse(s))?.use { BitmapSampler.decodeStream(it, 1080) }
+            }.getOrNull()?.let { return it }
         }
         return null
     }

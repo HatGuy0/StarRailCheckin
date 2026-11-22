@@ -99,6 +99,25 @@ object RelicScorer {
         return ret
     }
 
+    /** Mihomo 属性 type → 权重 key（供诊断层判断词条是否有效）。 */
+    fun typeToKey(mihomoType: String): String? = TYPE_MAP[mihomoType]
+
+    /** 角色权重表中权重 > 0 的词条 key 集合。 */
+    fun weightedKeys(charName: String): Set<String> {
+        val w = getWeight(charName)
+        return w.filterValues { it > 0 }.keys
+    }
+
+    /** 该位置主词条是否为权重最高的候选之一（主词条最优判定）。 */
+    fun mainMatchOptimal(charName: String, position: Int, mainType: String): Boolean {
+        val candidates = MAIN_ATTRS[position] ?: return false
+        val key = TYPE_MAP[mainType] ?: return false
+        val weight = getWeight(charName)
+        val best = candidates.mapNotNull { weight[it] }.maxOrNull() ?: return false
+        val cur = weight[key] ?: return false
+        return cur > 0 && cur >= best
+    }
+
     /**
      * 计算 attrs map（对齐 miao ArtisMarkCfg.getCfg）
      * 对每个有权重的词条，计算 mark 和 fixWeight
@@ -139,7 +158,7 @@ object RelicScorer {
                     else -> 1.0
                 }
                 info.mark = w / baseValue / baseAttrVal * 100
-                info.fixWeight = w * baseValue / ATTR_VALUE[weightKey]!! / baseAttrVal * 100
+                info.fixWeight = w * baseValue / (ATTR_VALUE[weightKey] ?: baseValue) / baseAttrVal * 100
             }
             ret[key] = info
         }
@@ -167,10 +186,10 @@ object RelicScorer {
                 // 选权重最高的主词条
                 val candidates = MAIN_ATTRS[idx] ?: continue
                 val sorted = candidates.filter { attrs.containsKey(it) }
-                    .sortedByDescending { attrs[it]!!.fixWeight }
+                    .sortedByDescending { attrs[it]?.fixWeight ?: 0.0 }
                 if (sorted.isNotEmpty()) {
                     mAttr = sorted[0]
-                    val mMark = attrs[mAttr]!!.fixWeight
+                    val mMark = attrs[mAttr]?.fixWeight ?: 0.0
                     totalMark += mMark * 2
                 } else {
                     mAttr = candidates[0]
@@ -179,10 +198,10 @@ object RelicScorer {
 
             // 选权重最高的4个副词条（排除主词条）
             val subSorted = SUB_ATTRS.filter { it != mAttr && attrs.containsKey(it) }
-                .sortedByDescending { attrs[it]!!.fixWeight }
+                .sortedByDescending { attrs[it]?.fixWeight ?: 0.0 }
                 .take(4)
             subSorted.forEachIndexed { i, attr ->
-                val fw = attrs[attr]!!.fixWeight
+                val fw = attrs[attr]?.fixWeight ?: 0.0
                 totalMark += fw * if (i == 0) 6 else 1
             }
             ret[idx] = totalMark
@@ -243,9 +262,9 @@ object RelicScorer {
             // 主词条分（位置3-6）
             if (mKey != "recharge" && attrs.containsKey(mKey)) {
                 val mMax = MAIN_ATTRS[position]?.filter { attrs.containsKey(it) }
-                    ?.maxOfOrNull { attrs[it]!!.fixWeight } ?: 0.0
+                    ?.maxOfOrNull { attrs[it]?.fixWeight ?: 0.0 } ?: 0.0
                 fixPct = if (mMax > 0) {
-                    maxOf(0.0, minOf(1.0, attrs[mKey]!!.weight / mMax))
+                    maxOf(0.0, minOf(1.0, (attrs[mKey]?.weight ?: 0.0) / mMax))
                 } else 1.0
             }
             val mVal = if (mKey in PCT_ATTRS) mainValue * 100 else mainValue
@@ -261,7 +280,7 @@ object RelicScorer {
             val key = TYPE_MAP[type] ?: continue
             if (!attrs.containsKey(key)) continue
             val v = if (key in PCT_ATTRS) value * 100 else value
-            ret += attrs[key]!!.mark * v
+            ret += (attrs[key]?.mark ?: 0.0) * v
         }
 
         if (pMax <= 0) return 0.0
@@ -273,10 +292,10 @@ object RelicScorer {
     private fun getMainMaxMark(attrs: Map<String, AttrInfo>, mainKey: String): Double {
         var totalMark = (attrs[mainKey]?.fixWeight ?: 0.0) * 2
         val subSorted = SUB_ATTRS.filter { it != mainKey && attrs.containsKey(it) }
-            .sortedByDescending { attrs[it]!!.fixWeight }
+            .sortedByDescending { attrs[it]?.fixWeight ?: 0.0 }
             .take(4)
         subSorted.forEachIndexed { i, attr ->
-            totalMark += attrs[attr]!!.fixWeight * if (i == 0) 6.0 else 1.0
+            totalMark += attrs[attr]?.fixWeight ?: 0.0 * if (i == 0) 6.0 else 1.0
         }
         return totalMark
     }

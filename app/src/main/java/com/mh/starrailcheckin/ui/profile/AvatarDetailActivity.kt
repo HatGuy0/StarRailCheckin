@@ -8,6 +8,8 @@ import android.net.Uri
 import android.os.Bundle
 import android.view.ViewGroup
 import android.widget.ImageView
+import android.widget.Toast
+import androidx.core.content.FileProvider
 import androidx.activity.compose.setContent
 import androidx.appcompat.app.AppCompatActivity
 import androidx.compose.foundation.Canvas
@@ -62,14 +64,18 @@ import androidx.compose.ui.unit.sp
 import androidx.compose.ui.viewinterop.AndroidView
 import androidx.core.view.WindowInsetsControllerCompat
 import com.mh.starrailcheckin.R
+import com.mh.starrailcheckin.ui.components.ErrorState
+import com.mh.starrailcheckin.ui.components.LoadingState
 import com.mh.starrailcheckin.ui.components.NavEventOwnerHost
 import com.mh.starrailcheckin.network.MicaApi
 import com.mh.starrailcheckin.ui.theme.DarkBackgroundGradient
 import com.mh.starrailcheckin.ui.theme.LightBackgroundGradient
 import com.mh.starrailcheckin.ui.theme.LocalAppDarkTheme
+import com.mh.starrailcheckin.ui.theme.LocalSuccessColor
 import com.mh.starrailcheckin.ui.theme.StarRailCheckinTheme
 import com.mh.starrailcheckin.util.LogHelper
 import com.mh.starrailcheckin.util.Prefs
+import com.mh.starrailcheckin.util.UiError
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 import org.json.JSONArray
@@ -77,9 +83,14 @@ import org.json.JSONObject
 import top.yukonga.miuix.kmp.basic.Icon
 import top.yukonga.miuix.kmp.basic.IconButton
 import top.yukonga.miuix.kmp.basic.Scaffold
+import top.yukonga.miuix.kmp.basic.Switch
 import top.yukonga.miuix.kmp.basic.Text
 import top.yukonga.miuix.kmp.basic.TextButton
+import top.yukonga.miuix.kmp.basic.TextField
+import top.yukonga.miuix.kmp.overlay.OverlayDialog
 import top.yukonga.miuix.kmp.theme.MiuixTheme
+import java.io.File
+import java.io.FileOutputStream
 import java.text.SimpleDateFormat
 import java.util.Date
 import java.util.Locale
@@ -182,7 +193,12 @@ internal data class RelicUi(
     val subs: List<SubUi>,
     val score: Double,
     val grade: String,
-    val failCount: Int
+    val failCount: Int,
+    val weightedSubs: List<Boolean> = emptyList(),
+    val rollTiers: List<Int> = emptyList(),
+    val effectiveCount: Int = 0,
+    val failRatio: Double = 0.0,
+    val mainOptimal: Boolean? = null
 )
 
 internal data class AffixUi(
@@ -573,7 +589,7 @@ private suspend fun loadDetail(context: android.content.Context, avatarId: Int):
             official?.value ?: o?.optDouble("value", 0.0) ?: white
         }
         val shownWhite = if (rebuilt != null) {
-            val rawBase = if (isFlat) panel?.attr?.get("${panelKey}Base") else panel?.base?.get(panelKey)
+            val rawBase = if (isFlat) panel.attr.get("${panelKey}Base") else panel.base.get(panelKey)
             if (rawBase != null) {
                 if (isFlat) rawBase else rawBase / 100.0
             } else white
@@ -628,6 +644,12 @@ private suspend fun loadDetail(context: android.content.Context, avatarId: Int):
         "普攻" to "a", "战技" to "e", "天赋" to "t", "终结技" to "q", "秘技" to "z",
         "欢愉技" to "xe", "忆灵技" to "me", "忆灵天赋" to "mt"
     )
+    // 技能图标 slug（对齐 StarRailRes character_skills.json 命名）：本地 assets → 在线兜底
+    val skillIconSlug = mapOf(
+        "普攻" to "basic_atk", "战技" to "skill", "终结技" to "ultimate",
+        "天赋" to "talent", "秘技" to "technique",
+        "欢愉技" to "elation", "忆灵技" to "memosprite_skill", "忆灵天赋" to "memosprite_talent"
+    )
     val skills = mutableListOf<SkillUi>()
     for (type in order) {
         var dictionary: JSONObject? = null
@@ -653,12 +675,14 @@ private suspend fun loadDetail(context: android.content.Context, avatarId: Int):
         val skillName = dictName.takeIf { it.isNotBlank() && it != "技能" && it != type }
             ?: officialName.ifBlank { dataName.ifBlank { type } }
         val dictIcon = dictionary?.optString("icon", "").orEmpty()
+        val officialIcon = official?.optString("icon", "").orEmpty()
+        val fallbackIcon = skillIconSlug[type]?.let { "icon/skill/${aid}_$it.png" }.orEmpty()
         skills.add(
             SkillUi(
                 name = skillName,
                 typeText = type,
                 level = official?.optInt("level", 1) ?: dictionary?.optInt("level", 1) ?: 1,
-                icon = dictIcon.ifBlank { official?.optString("icon", "").orEmpty() }
+                icon = dictIcon.ifBlank { officialIcon.ifBlank { fallbackIcon } }
             )
         )
     }
@@ -869,6 +893,11 @@ private fun parseRelic(o: JSONObject, charName: String, baseMap: Map<String, Dou
     }.getOrDefault(0.0)
     val fail = runCatching { RelicScorer.countFail(charName, countTriples) }.getOrDefault(0)
 
+    val sortedSubs = subs.sortedByDescending { it.countValue }
+    val insight = runCatching {
+        RelicInsight.inspect(charName, type, main, sortedSubs, fail)
+    }.getOrNull()
+
     return RelicUi(
         tid = tid,
         setId = if (setId > 0) setId else 0,
@@ -876,10 +905,15 @@ private fun parseRelic(o: JSONObject, charName: String, baseMap: Map<String, Dou
         type = type,
         level = level,
         main = main,
-        subs = subs.sortedByDescending { it.countValue },
+        subs = sortedSubs,
         score = score,
         grade = RelicScorer.scoreToGrade(score),
-        failCount = fail
+        failCount = fail,
+        weightedSubs = insight?.subInsights?.map { it.weighted }.orEmpty(),
+        rollTiers = insight?.subInsights?.map { it.rollTier }.orEmpty(),
+        effectiveCount = insight?.effectiveCount ?: 0,
+        failRatio = insight?.failRatio ?: 0.0,
+        mainOptimal = insight?.mainOptimal
     )
 }
 
@@ -899,6 +933,7 @@ private fun AvatarDetailScreen(avatarId: Int, onBack: () -> Unit) {
     var loading by remember { mutableStateOf(true) }
     var error by remember { mutableStateOf<String?>(null) }
     var reload by remember { mutableIntStateOf(0) }
+    var showShare by remember { mutableStateOf(false) }
 
     LaunchedEffect(reload) {
         loading = true
@@ -906,7 +941,7 @@ private fun AvatarDetailScreen(avatarId: Int, onBack: () -> Unit) {
         runCatching {
             withContext(Dispatchers.IO) { loadDetail(context, avatarId) }
         }.onSuccess { data = it }
-            .onFailure { error = it.message ?: "加载失败" }
+            .onFailure { error = UiError.message(it, "加载失败") }
         loading = false
     }
 
@@ -940,33 +975,140 @@ private fun AvatarDetailScreen(avatarId: Int, onBack: () -> Unit) {
                     maxLines = 1,
                     overflow = TextOverflow.Ellipsis
                 )
+                if (data != null) {
+                    TextButton(text = "分享", onClick = { showShare = true })
+                    Spacer(Modifier.width(4.dp))
+                }
                 TextButton(text = "刷新", onClick = { reload++ })
             }
 
             when {
-                loading && data == null -> Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
-                    Text("加载中…", fontSize = 13.sp, color = MiuixTheme.colorScheme.onSurfaceSecondary)
-                }
-                error != null && data == null -> Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
-                    Column(horizontalAlignment = Alignment.CenterHorizontally) {
-                        Text(
-                            text = error ?: "加载失败",
-                            fontSize = 13.sp,
-                            color = MiuixTheme.colorScheme.error,
-                            textAlign = TextAlign.Center
-                        )
-                        Spacer(Modifier.height(10.dp))
-                        Text(
-                            text = "点右上角刷新重试",
-                            fontSize = 12.sp,
-                            color = MiuixTheme.colorScheme.onSurfaceSecondary
-                        )
+                loading && data == null -> LoadingState(modifier = Modifier.fillMaxSize())
+                error != null && data == null -> ErrorState(
+                    message = error ?: "加载失败",
+                    hint = "点右上角刷新重试",
+                    modifier = Modifier.fillMaxSize()
+                )
+                data != null -> data?.let { DetailContent(it) }
+            }
+
+            data?.let { d ->
+                if (showShare) {
+                    ShareCardDialog(
+                        d = d,
+                        onDismiss = { showShare = false }
+                    ) { opts ->
+                        showShare = false
+                        exportCharacterCard(context, d, opts)
                     }
                 }
-                data != null -> DetailContent(data!!)
             }
         }
     }
+}
+
+@Composable
+private fun ShareCardDialog(
+    d: DetailUi,
+    onDismiss: () -> Unit,
+    onExport: (CharacterShareImage.ShareOpts) -> Unit
+) {
+    val context = LocalContext.current
+    var caption by remember { mutableStateOf(Prefs.shareCaption(context)) }
+    var showUid by remember { mutableStateOf(Prefs.shareShowUid(context)) }
+    var showStats by remember { mutableStateOf(Prefs.shareShowStats(context)) }
+    var showRelics by remember { mutableStateOf(Prefs.shareShowRelics(context)) }
+    var showScore by remember { mutableStateOf(Prefs.shareShowScore(context)) }
+
+    OverlayDialog(
+        show = true,
+        title = "分享配装图",
+        onDismissRequest = onDismiss,
+        content = {
+            TextField(
+                value = caption,
+                onValueChange = { caption = it.take(30) },
+                label = "签名文案（可选）",
+                singleLine = true,
+                modifier = Modifier.fillMaxWidth()
+            )
+            Spacer(Modifier.height(12.dp))
+            ShareSwitchRow("显示 UID", showUid) { showUid = it }
+            ShareSwitchRow("显示属性面板", showStats) { showStats = it }
+            ShareSwitchRow("显示遗器明细", showRelics) { showRelics = it }
+            ShareSwitchRow("显示遗器评分", showScore) { showScore = it }
+            Spacer(Modifier.height(12.dp))
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.End
+            ) {
+                TextButton(text = "取消", onClick = onDismiss)
+                Spacer(Modifier.width(8.dp))
+                TextButton(text = "生成并分享", onClick = {
+                    val safeCaption = caption.trim().take(30)
+                    Prefs.setShareCaption(context, safeCaption)
+                    Prefs.setShareShowUid(context, showUid)
+                    Prefs.setShareShowStats(context, showStats)
+                    Prefs.setShareShowRelics(context, showRelics)
+                    Prefs.setShareShowScore(context, showScore)
+                    onExport(
+                        CharacterShareImage.ShareOpts(
+                            caption = safeCaption,
+                            showUid = showUid,
+                            showStats = showStats,
+                            showRelics = showRelics,
+                            showScore = showScore
+                        )
+                    )
+                })
+            }
+        }
+    )
+}
+
+@Composable
+private fun ShareSwitchRow(label: String, checked: Boolean, onChange: (Boolean) -> Unit) {
+    Row(
+        modifier = Modifier.fillMaxWidth(),
+        verticalAlignment = Alignment.CenterVertically
+    ) {
+        Text(
+            text = label,
+            style = MiuixTheme.textStyles.body2,
+            modifier = Modifier.weight(1f)
+        )
+        Switch(checked = checked, onCheckedChange = onChange)
+    }
+}
+
+private fun exportCharacterCard(context: Context, d: DetailUi, opts: CharacterShareImage.ShareOpts) {
+    Toast.makeText(context, "正在生成配装图…", Toast.LENGTH_SHORT).show()
+    Thread {
+        try {
+            val portrait = EnkaImageLoader.portraitBitmap(context, d.aid)
+            val bmp = CharacterShareImage.create(d, portrait, opts)
+            val dir = File(context.getExternalFilesDir("exports"), "character").apply { mkdirs() }
+            val file = File(dir, "character_share_${System.currentTimeMillis()}.png")
+            FileOutputStream(file).use { bmp.compress(Bitmap.CompressFormat.PNG, 100, it) }
+            bmp.recycle()
+            val activity = context as? Activity
+            activity?.runOnUiThread {
+                val uri = FileProvider.getUriForFile(
+                    context, "${context.packageName}.fileprovider", file
+                )
+                val send = Intent(Intent.ACTION_SEND).apply {
+                    type = "image/png"
+                    putExtra(Intent.EXTRA_STREAM, uri)
+                    addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION)
+                }
+                context.startActivity(Intent.createChooser(send, "分享角色配装图"))
+            }
+        } catch (e: Exception) {
+            (context as? Activity)?.runOnUiThread {
+                Toast.makeText(context, "生成配装图失败：${e.message}", Toast.LENGTH_SHORT).show()
+            }
+        }
+    }.start()
 }
 
 @Composable
@@ -1002,123 +1144,104 @@ private fun DetailContent(d: DetailUi) {
 
 @Composable
 private fun Header(d: DetailUi) {
-    val surface = MiuixTheme.colorScheme.surfaceContainer
     val accent = elementColor(d.elementField)
     Box(
         Modifier
             .fillMaxWidth()
-            .height(352.dp)
-            .clip(RoundedCornerShape(18.dp))
-            .background(surface)
+            .height(340.dp)
+            .clip(RoundedCornerShape(14.dp))
             .clipToBounds()
     ) {
-        // 立绘：全身预览图，Fit 居中，保证整个角色完整露出
-        PortraitImage(
-            aid = d.aid,
-            modifier = Modifier
-                .fillMaxHeight()
-                .fillMaxWidth(0.70f)
-                .align(Alignment.CenterStart)
-        )
-        Box(
-            Modifier
-                .fillMaxSize()
-                .background(
-                    Brush.horizontalGradient(
-                        0.0f to Color.Transparent,
-                        0.30f to surface.copy(alpha = 0.12f),
-                        0.50f to surface,
-                        1.0f to surface
-                    )
+        Row(Modifier.fillMaxSize()) {
+            // 左半：立绘
+            Box(Modifier.weight(1f).fillMaxHeight()) {
+                PortraitImage(
+                    aid = d.aid,
+                    modifier = Modifier.fillMaxSize()
                 )
-        )
 
-        // 标题（右上）
-        Column(
-            Modifier
-                .align(Alignment.TopEnd)
-                .padding(top = 12.dp, end = 12.dp),
-            horizontalAlignment = Alignment.End
-        ) {
-            Row(verticalAlignment = Alignment.Bottom) {
-                Text(
-                    text = d.name,
-                    fontSize = 24.sp,
-                    fontWeight = FontWeight.Bold,
-                    color = MiuixTheme.colorScheme.onSurface,
-                    maxLines = 1,
-                    overflow = TextOverflow.Ellipsis
-                )
-                Spacer(Modifier.width(5.dp))
-                Text(
-                    text = "Lv.${d.level}",
-                    fontSize = 11.sp,
-                    fontWeight = FontWeight.Medium,
-                    color = MiuixTheme.colorScheme.onSurfaceSecondary
-                )
-            }
-            Spacer(Modifier.height(2.dp))
-            Row(verticalAlignment = Alignment.CenterVertically) {
-                Text(
-                    text = "UID ${d.uid}",
-                    fontSize = 9.sp,
-                    color = MiuixTheme.colorScheme.onSurfaceSecondary
-                )
-                Spacer(Modifier.width(5.dp))
-                Text(
-                    text = "·",
-                    fontSize = 9.sp,
-                    color = MiuixTheme.colorScheme.onSurfaceSecondary
-                )
-                Spacer(Modifier.width(5.dp))
-                Box(
+                // 命座图标（左下）：已解锁高亮，未解锁半透明
+                Row(
                     Modifier
-                        .clip(RoundedCornerShape(7.dp))
-                        .background(accent.copy(alpha = 0.18f))
-                        .padding(horizontal = 5.dp, vertical = 1.dp)
+                        .align(Alignment.BottomStart)
+                        .padding(start = 12.dp, bottom = 8.dp),
+                    horizontalArrangement = Arrangement.spacedBy(3.dp),
+                    verticalAlignment = Alignment.CenterVertically
                 ) {
-                    Text(
-                        text = "${d.rank}唤",
-                        fontSize = 8.sp,
-                        fontWeight = FontWeight.Medium,
-                        color = accent
-                    )
+                    repeat(6) { i ->
+                        EidolonIcon(aid = d.aid, index = i + 1, unlocked = i < d.rank)
+                    }
                 }
             }
-            Spacer(Modifier.height(4.dp))
-            Row(horizontalArrangement = Arrangement.spacedBy(5.dp)) {
-                if (d.element.isNotBlank()) Chip(d.element, accent)
-                if (d.path.isNotBlank()) Chip(d.path, MiuixTheme.colorScheme.onSurfaceSecondary)
-            }
-        }
 
-        // 属性面板（右侧，覆盖在立绘之上）
-        Column(
-            Modifier
-                .align(Alignment.TopEnd)
-                .fillMaxWidth(0.48f)
-                .padding(top = 82.dp, end = 10.dp)
-        ) {
-            d.stats.forEach { StatLine(it) }
-        }
+            // 右半：标题 + 属性面板（分栏并排，不压立绘）
+            Column(
+                Modifier
+                    .weight(1f)
+                    .fillMaxHeight()
+                    .background(MiuixTheme.colorScheme.surfaceContainer.copy(alpha = 0.55f))
+                    .padding(10.dp)
+            ) {
+                Row(verticalAlignment = Alignment.Bottom) {
+                    Text(
+                        text = d.name,
+                        fontSize = 20.sp,
+                        fontWeight = FontWeight.Bold,
+                        color = MiuixTheme.colorScheme.onSurface,
+                        maxLines = 1,
+                        overflow = TextOverflow.Ellipsis
+                    )
+                    Spacer(Modifier.width(5.dp))
+                    Text(
+                        text = "Lv.${d.level}",
+                        fontSize = 11.sp,
+                        fontWeight = FontWeight.Medium,
+                        color = MiuixTheme.colorScheme.onSurfaceSecondary
+                    )
+                }
+                Spacer(Modifier.height(2.dp))
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    Text(
+                        text = "UID ${d.uid}",
+                        fontSize = 9.sp,
+                        color = MiuixTheme.colorScheme.onSurfaceSecondary
+                    )
+                    Spacer(Modifier.width(5.dp))
+                    Text(
+                        text = "·",
+                        fontSize = 9.sp,
+                        color = MiuixTheme.colorScheme.onSurfaceSecondary
+                    )
+                    Spacer(Modifier.width(5.dp))
+                    Box(
+                        Modifier
+                            .clip(RoundedCornerShape(7.dp))
+                            .background(accent.copy(alpha = 0.18f))
+                            .padding(horizontal = 5.dp, vertical = 1.dp)
+                    ) {
+                        Text(
+                            text = "${d.rank}唤",
+                            fontSize = 8.sp,
+                            fontWeight = FontWeight.Medium,
+                            color = accent
+                        )
+                    }
+                }
+                Spacer(Modifier.height(4.dp))
+                Row(horizontalArrangement = Arrangement.spacedBy(5.dp)) {
+                    if (d.element.isNotBlank()) Chip(d.element, accent)
+                    if (d.path.isNotBlank()) Chip(d.path, MiuixTheme.colorScheme.onSurfaceSecondary)
+                }
+                Spacer(Modifier.height(10.dp))
 
-        // 命座图标（左下）：已解锁高亮，未解锁半透明
-        Row(
-            Modifier
-                .align(Alignment.BottomStart)
-                .padding(start = 12.dp, bottom = 8.dp),
-            horizontalArrangement = Arrangement.spacedBy(3.dp),
-            verticalAlignment = Alignment.CenterVertically
-        ) {
-            repeat(6) { i ->
-                EidolonIcon(aid = d.aid, index = i + 1, unlocked = i < d.rank)
+                d.stats.forEach { StatLine(it) }
             }
         }
 
         // 数据源（右下）
         Text(
             text = "数据源：米游社 · ${d.sourceTime}",
-            fontSize = 7.sp,
+            fontSize = 9.sp,
             color = MiuixTheme.colorScheme.onSurfaceSecondary,
             modifier = Modifier
                 .align(Alignment.BottomEnd)
@@ -1146,7 +1269,7 @@ private fun StatLine(r: StatRow) {
             Spacer(Modifier.width(3.dp))
             Text(
                 text = r.name,
-                fontSize = 8.sp,
+                fontSize = 9.sp,
                 color = MiuixTheme.colorScheme.onSurfaceSecondary,
                 maxLines = 1
             )
@@ -1166,14 +1289,14 @@ private fun StatLine(r: StatRow) {
         ) {
             Text(
                 text = r.base,
-                fontSize = 7.sp,
+                fontSize = 9.sp,
                 color = MiuixTheme.colorScheme.onSurfaceSecondary,
                 maxLines = 1
             )
             Text(
                 text = r.bonus,
-                fontSize = 7.sp,
-                color = if (r.positive) Color(0xFF4CC38A) else Color(0xFFE05B5B),
+                fontSize = 9.sp,
+                color = if (r.positive) LocalSuccessColor.current else MiuixTheme.colorScheme.error,
                 maxLines = 1
             )
         }
@@ -1194,22 +1317,14 @@ private fun Chip(text: String, tint: Color) {
 
 @Composable
 private fun PortraitImage(aid: Int, modifier: Modifier) {
-    val context = LocalContext.current
-    var bmp by remember(aid) { mutableStateOf<Bitmap?>(null) }
-    LaunchedEffect(aid) {
-        bmp = withContext(Dispatchers.IO) { EnkaImageLoader.portraitBitmap(context, aid) }
-    }
-    val b = bmp
-    if (b != null) {
-        Image(
-            bitmap = b.asImageBitmap(),
-            contentDescription = null,
-            modifier = modifier,
-            contentScale = ContentScale.Crop,
-            // 方图素材主体基本居中，用 Center 水平居中裁剪，避免角色被推到右侧或单边切半
-            alignment = Alignment.Center
-        )
-    }
+    // 与 Enka 主卡同一套立绘管线：ImageView CENTER_CROP + loadPortrait
+    AndroidView(
+        factory = { ctx ->
+            ImageView(ctx).apply { scaleType = ImageView.ScaleType.CENTER_CROP }
+        },
+        update = { iv -> EnkaImageLoader.loadPortrait(iv.context, aid, iv) },
+        modifier = modifier
+    )
 }
 
 /** 命座图标：已解锁 → 灰色圆形底 + 图标染白；未解锁 → 半透明原图标。 */
@@ -1282,7 +1397,7 @@ private fun SkillPanel(d: DetailUi) {
                 Column(horizontalAlignment = Alignment.CenterHorizontally) {
                     Text(
                         text = s.typeText,
-                        fontSize = 8.sp,
+                        fontSize = 9.sp,
                         color = MiuixTheme.colorScheme.onSurfaceSecondary
                     )
                     Spacer(Modifier.height(3.dp))
@@ -1312,7 +1427,7 @@ private fun SkillPanel(d: DetailUi) {
                         ) {
                             Text(
                                 text = "${s.level}",
-                                fontSize = 7.sp,
+                                fontSize = 8.sp,
                                 fontWeight = FontWeight.Medium,
                                 color = MiuixTheme.colorScheme.onSurface
                             )
@@ -1386,9 +1501,9 @@ private fun LightConeCard(lc: LcUi) {
             Spacer(Modifier.height(8.dp))
             Text(
                 text = lc.desc,
-                fontSize = 9.5.sp,
+                fontSize = 10.sp,
                 color = MiuixTheme.colorScheme.onSurfaceSecondary,
-                lineHeight = 15.sp
+                lineHeight = 16.sp
             )
         }
     }
@@ -1496,7 +1611,7 @@ private fun GlobalRankCard(d: DetailUi) {
                     Spacer(Modifier.height(3.dp))
                     Text(
                         text = "榜首 ${s.r.topName} · ${String.format(Locale.US, "%.1f", s.r.topScore)} 分",
-                        fontSize = 8.sp,
+                        fontSize = 9.sp,
                         color = MiuixTheme.colorScheme.onSurfaceSecondary
                     )
                 }
@@ -1504,7 +1619,7 @@ private fun GlobalRankCard(d: DetailUi) {
                 Text(
                     text = "榜单更新 ${s.r.updatedText}" +
                         if (s.r.estimated) " · 参考名次（本地评分插入榜单估算）" else "",
-                    fontSize = 8.sp,
+                    fontSize = 9.sp,
                     color = MiuixTheme.colorScheme.onSurfaceSecondary
                 )
             }
@@ -1514,7 +1629,7 @@ private fun GlobalRankCard(d: DetailUi) {
         Row(verticalAlignment = Alignment.CenterVertically) {
             Text(
                 text = "Fribbels 伤害评分 ↗",
-                fontSize = 9.sp,
+                fontSize = 10.sp,
                 fontWeight = FontWeight.Medium,
                 color = MiuixTheme.colorScheme.primary,
                 modifier = Modifier.clickable {
@@ -1524,7 +1639,7 @@ private fun GlobalRankCard(d: DetailUi) {
             Spacer(Modifier.width(14.dp))
             Text(
                 text = "stardb 排名 ↗",
-                fontSize = 9.sp,
+                fontSize = 10.sp,
                 fontWeight = FontWeight.Medium,
                 color = MiuixTheme.colorScheme.primary,
                 modifier = Modifier.clickable {
@@ -1535,7 +1650,7 @@ private fun GlobalRankCard(d: DetailUi) {
         Spacer(Modifier.height(4.dp))
         Text(
             text = "数据来源：api.scoremyrelic.com · 仅收录在该站查询过的账号",
-            fontSize = 8.sp,
+            fontSize = 9.sp,
             color = MiuixTheme.colorScheme.onSurfaceSecondary
         )
     }
@@ -1590,7 +1705,7 @@ private fun ScoreBanner(d: DetailUi) {
                 Spacer(Modifier.height(1.dp))
                 Text(
                     text = "圣遗物评级",
-                    fontSize = 8.sp,
+                    fontSize = 9.sp,
                     color = MiuixTheme.colorScheme.onSurfaceSecondary
                 )
             }
@@ -1609,7 +1724,7 @@ private fun ScoreBanner(d: DetailUi) {
                                 Row(verticalAlignment = Alignment.CenterVertically) {
                                     Text(
                                         text = a.countText,
-                                        fontSize = 8.sp,
+                                        fontSize = 9.sp,
                                         fontWeight = FontWeight.Medium,
                                         color = MiuixTheme.colorScheme.primary,
                                         maxLines = 1
@@ -1617,7 +1732,7 @@ private fun ScoreBanner(d: DetailUi) {
                                     Spacer(Modifier.width(2.dp))
                                     Text(
                                         text = a.name,
-                                        fontSize = 8.sp,
+                                        fontSize = 9.sp,
                                         color = MiuixTheme.colorScheme.onSurfaceSecondary,
                                         maxLines = 1
                                     )
@@ -1648,13 +1763,13 @@ private fun ScoreBanner(d: DetailUi) {
             Row(verticalAlignment = Alignment.CenterVertically) {
                 Text(
                     text = "评分规则：通用",
-                    fontSize = 8.sp,
+                    fontSize = 9.sp,
                     color = MiuixTheme.colorScheme.onSurfaceSecondary
                 )
                 Spacer(Modifier.weight(1f))
                 Text(
                     text = "评分为喵喵版规则，仅供参考与娱乐",
-                    fontSize = 8.sp,
+                    fontSize = 9.sp,
                     color = MiuixTheme.colorScheme.onSurfaceSecondary
                 )
             }
@@ -1688,7 +1803,7 @@ private fun RelicDetailPanel(relics: List<RelicUi>) {
             Spacer(Modifier.weight(1f))
             Text(
                 text = "词条数按词条基础值折算",
-                fontSize = 8.sp,
+                fontSize = 9.sp,
                 color = MiuixTheme.colorScheme.onSurfaceSecondary
             )
         }
@@ -1718,11 +1833,11 @@ private fun RelicCard(r: RelicUi, modifier: Modifier) {
         Row(verticalAlignment = Alignment.Top) {
             Text(
                 text = r.setName.ifBlank { EnkaNameMap.relicTypeName(r.type) },
-                fontSize = 8.5.sp,
+                fontSize = 9.5.sp,
                 fontWeight = FontWeight.Medium,
                 color = MiuixTheme.colorScheme.onSurface,
                 maxLines = 2,
-                lineHeight = 11.sp,
+                lineHeight = 12.5.sp,
                 overflow = TextOverflow.Ellipsis,
                 modifier = Modifier.weight(1f)
             )
@@ -1746,21 +1861,30 @@ private fun RelicCard(r: RelicUi, modifier: Modifier) {
         Row(verticalAlignment = Alignment.CenterVertically) {
             Text(
                 text = String.format(Locale.US, "%.1f分", r.score),
-                fontSize = 8.sp,
+                fontSize = 9.sp,
                 fontWeight = FontWeight.Bold,
                 color = MiuixTheme.colorScheme.primary
             )
             Spacer(Modifier.width(3.dp))
             Text(
                 text = "- ${r.grade}",
-                fontSize = 7.5.sp,
+                fontSize = 9.sp,
                 fontWeight = FontWeight.Bold,
                 color = gradeColor(r.grade)
             )
+            if (r.failCount > 0) {
+                Spacer(Modifier.width(3.dp))
+                Text(
+                    text = "歪${r.failCount}",
+                    fontSize = 8.sp,
+                    fontWeight = FontWeight.Bold,
+                    color = MiuixTheme.colorScheme.error
+                )
+            }
             Spacer(Modifier.weight(1f))
             Text(
                 text = "+${r.level}",
-                fontSize = 7.5.sp,
+                fontSize = 9.sp,
                 color = MiuixTheme.colorScheme.onSurfaceSecondary
             )
         }
@@ -1772,14 +1896,26 @@ private fun RelicCard(r: RelicUi, modifier: Modifier) {
                 Spacer(Modifier.width(2.dp))
                 Text(
                     text = relicPropLabel(main),
-                    fontSize = 7.5.sp,
-                    color = MiuixTheme.colorScheme.onSurfaceSecondary,
+                    fontSize = 9.5.sp,
+                    color = if (r.mainOptimal == false)
+                        MiuixTheme.colorScheme.onSurfaceSecondary.copy(alpha = 0.6f)
+                    else MiuixTheme.colorScheme.onSurfaceSecondary,
                     maxLines = 1,
                     modifier = Modifier.weight(1f)
                 )
+                if (r.mainOptimal == true) {
+                    Text(
+                        text = "优",
+                        fontSize = 8.sp,
+                        fontWeight = FontWeight.Bold,
+                        color = LocalSuccessColor.current,
+                        maxLines = 1
+                    )
+                    Spacer(Modifier.width(2.dp))
+                }
                 Text(
                     text = "+${main.text}",
-                    fontSize = 7.5.sp,
+                    fontSize = 9.5.sp,
                     fontWeight = FontWeight.Medium,
                     color = MiuixTheme.colorScheme.onSurface,
                     maxLines = 1
@@ -1787,7 +1923,17 @@ private fun RelicCard(r: RelicUi, modifier: Modifier) {
             }
             Spacer(Modifier.height(2.dp))
         }
-        r.subs.take(4).forEach { s ->
+        r.subs.take(4).forEachIndexed { idx, s ->
+            val weighted = r.weightedSubs.getOrNull(idx) ?: true
+            val tier = r.rollTiers.getOrNull(idx) ?: RelicInsight.ROLL_MID
+            val labelColor = if (weighted)
+                MiuixTheme.colorScheme.onSurfaceSecondary
+            else MiuixTheme.colorScheme.onSurfaceSecondary.copy(alpha = 0.45f)
+            val countColor = when (tier) {
+                RelicInsight.ROLL_HIGH -> MiuixTheme.colorScheme.primary
+                RelicInsight.ROLL_LOW -> MiuixTheme.colorScheme.onSurfaceSecondary.copy(alpha = 0.6f)
+                else -> MiuixTheme.colorScheme.onSurfaceSecondary
+            }
             Row(
                 Modifier
                     .fillMaxWidth()
@@ -1796,24 +1942,25 @@ private fun RelicCard(r: RelicUi, modifier: Modifier) {
             ) {
                 Text(
                     text = s.countText,
-                    fontSize = 6.5.sp,
-                    color = MiuixTheme.colorScheme.primary.copy(alpha = 0.85f),
+                    fontSize = 8.sp,
+                    color = countColor,
                     modifier = Modifier.width(15.dp),
                     maxLines = 1
                 )
-                StatGlyph(s.prop.field, MiuixTheme.colorScheme.onSurfaceSecondary, 8.dp)
+                StatGlyph(s.prop.field, labelColor, 8.dp)
                 Spacer(Modifier.width(2.dp))
                 Text(
                     text = s.label,
-                    fontSize = 7.sp,
-                    color = MiuixTheme.colorScheme.onSurfaceSecondary,
+                    fontSize = 9.sp,
+                    color = labelColor,
                     maxLines = 1,
                     modifier = Modifier.weight(1f)
                 )
                 Text(
                     text = "+${s.prop.text}",
-                    fontSize = 7.sp,
-                    color = MiuixTheme.colorScheme.onSurface,
+                    fontSize = 9.sp,
+                    color = if (weighted) MiuixTheme.colorScheme.onSurface
+                    else MiuixTheme.colorScheme.onSurface.copy(alpha = 0.5f),
                     maxLines = 1
                 )
             }
@@ -1845,38 +1992,11 @@ private fun SetPanel(sets: List<SetUi>) {
                 Spacer(Modifier.height(2.dp))
                 Text(
                     text = s.desc,
-                    fontSize = 8.5.sp,
+                    fontSize = 9.5.sp,
                     color = MiuixTheme.colorScheme.onSurfaceSecondary,
-                    lineHeight = 12.sp
+                    lineHeight = 13.sp
                 )
             }
-        }
-    }
-}
-
-@Composable
-private fun DamagePlaceholder() {
-    Column {
-        Text(
-            text = "伤害计算",
-            fontSize = 13.sp,
-            fontWeight = FontWeight.Medium,
-            color = MiuixTheme.colorScheme.onBackground,
-            modifier = Modifier.padding(start = 2.dp, bottom = 6.dp)
-        )
-        Column(
-            Modifier
-                .fillMaxWidth()
-                .clip(RoundedCornerShape(16.dp))
-                .background(MiuixTheme.colorScheme.surfaceContainer)
-                .padding(12.dp)
-        ) {
-            Text(
-                text = "暂未接入：需要完整技能倍率与公式库，后续版本补充。",
-                fontSize = 9.sp,
-                color = MiuixTheme.colorScheme.onSurfaceSecondary,
-                lineHeight = 14.sp
-            )
         }
     }
 }

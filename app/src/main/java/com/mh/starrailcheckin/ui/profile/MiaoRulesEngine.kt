@@ -16,8 +16,7 @@ internal object MiaoRulesEngine {
         val title: String,
         val crit: Double? = null,
         val avg: Double? = null,
-        val text: String? = null,
-        val debug: String? = null
+        val text: String? = null
     )
 
     @Volatile
@@ -141,8 +140,7 @@ internal object MiaoRulesEngine {
                 title = title,
                 crit = finiteNumber(result["dmg"]),
                 avg = finiteNumber(result["avg"]),
-                text = text,
-                debug = attr["__dbg"]?.toString()
+                text = text
             )
         }
         return rows
@@ -151,7 +149,6 @@ internal object MiaoRulesEngine {
     private fun maybeCall(value: Any?, args: List<Any?>): Any? =
         if (MiaoJsEvaluator.isCallable(value)) MiaoJsEvaluator.call(value, args) else value
 
-    @Suppress("UNCHECKED_CAST")
     private fun toStringMap(value: Any?): JsMap = when (value) {
         is Map<*, *> -> {
             val result = linkedMapOf<String, Any?>()
@@ -182,8 +179,10 @@ internal object MiaoRulesEngine {
         else -> value
     }
 
+    // 泛型擦除下 as? 只校验容器类型，键值类型无法运行时校验，故抑制 unchecked 警告。
     @Suppress("UNCHECKED_CAST")
-    private fun deepCopy(map: JsMap): JsMap = deepCopy(map as Any?) as JsMap
+    private fun deepCopy(map: JsMap): JsMap =
+        (deepCopy(map as Any?) as? JsMap) ?: linkedMapOf()
 
     private fun buildTalent(d: DetailUi, data: JSONObject): JsMap {
         val result = linkedMapOf<String, Any?>()
@@ -580,9 +579,6 @@ internal object MiaoRulesEngine {
         return result
     }
 
-    private fun fmtNum(v: Double): String =
-        String.format(java.util.Locale.US, "%.2f", v)
-
     private fun calcValue(value: Any?): Double {
         val item = value as? Map<*, *> ?: return 0.0
         val base = MiaoJsEvaluator.number(item["base"])
@@ -704,10 +700,6 @@ internal object MiaoRulesEngine {
         val dmgBase = if (mode == "basic") basicNum * (1 + multiNum) + plusNum
         else atkNum * pctNum * (1 + multiNum) + plusNum
 
-        attr["__dbg"] = "atk=${fmtNum(atkNum)} pct=${fmtNum(pctNum)} dmg=${fmtNum(dmgNum)} " +
-            "enemy=${fmtNum(enemydmgNum)} def=${fmtNum(defNum)} k=${fmtNum(kNum)} " +
-            "cpct=${fmtNum(cpctNum * 100)} cdmg=${fmtNum(cdmgNum * 100)} ignore=${fmtNum(enemyIgnore * 100)}"
-
         val breakElements = setOf("shock", "burn", "windShear", "bleed", "entanglement", "lightningBreak",
             "fireBreak", "windBreak", "physicalBreak", "quantumBreak", "imaginaryBreak", "iceBreak", "superBreak")
         if (ele == "skillDot") {
@@ -732,8 +724,6 @@ internal object MiaoRulesEngine {
             val joyNum = 1 + itemNum(attr, "joy", "base") / 100 + itemNum(attr, "joy", "plus") / 100
             val punchline = MiaoJsEvaluator.number(attr["punchline"])
             val punchNum = 1 + punchline * 5 / (punchline + 240)
-            val prevDbg = attr["__dbg"]?.toString() ?: ""
-            attr["__dbg"] = prevDbg + " joy=${fmtNum((joyNum - 1) * 100)} merry=${fmtNum((merryNum - 1) * 100)} punch=${fmtNum(punchline)} punchC=${fmtNum(punchNum)}"
             val common = ElationDamage.baseOf(level) * pctNum * merryNum * joyNum * punchNum * defNum * kNum * reduceNum * enemydmgNum
             return linkedMapOf(
                 "dmg" to common * (1 + cdmgNum),

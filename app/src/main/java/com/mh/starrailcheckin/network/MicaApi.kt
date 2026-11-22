@@ -178,39 +178,39 @@ object MicaApi {
 
     private const val PASSENGER_APP_ID = "bll8iq97cem8"
 
-    private const val TAKUMI_HOST = "https://api-takumi.mihoyo.com"
+    private const val TAKUMI_HOST = ApiHosts.TAKUMI
     /** 官方设备指纹签发接口（国服） */
-    private const val GET_FP_URL = "https://public-data-api.mihoyo.com/device-fp/api/getFp"
+    private const val GET_FP_URL = "${ApiHosts.PUBLIC_DATA}/device-fp/api/getFp"
     /** getFp 失败后的负缓存时长，避免每次请求都重试 */
     private const val FP_RETRY_INTERVAL_MS = 10 * 60 * 1000L
     private const val LUNA_BASE = "$TAKUMI_HOST/event/luna/hkrpg"
     private const val LEGACY_SIGN_BASE = "$TAKUMI_HOST/event/bbs_sign_reward"
 
     private val TAKUMI_HOSTS = listOf(
-        "https://api-takumi.miyoushe.com",
-        "https://api-takumi.mihoyo.com"
+        ApiHosts.TAKUMI_MIYOUSHE,
+        ApiHosts.TAKUMI
     )
     private val RECORD_HOSTS = listOf(
-        "https://api-takumi-record.mihoyo.com"
+        ApiHosts.TAKUMI_RECORD
     )
     private val BBS_HOSTS = listOf(
-        "https://bbs-api.miyoushe.com",
-        "https://bbs-api.mihoyo.com"
+        ApiHosts.BBS_API_MIYOUSHE,
+        ApiHosts.BBS_API
     )
     private val PASSPORT_HOSTS = listOf(
-        "https://passport-api.miyoushe.com",
-        "https://passport-api.mihoyo.com"
+        ApiHosts.PASSPORT_API_MIYOUSHE,
+        ApiHosts.PASSPORT_API
     )
 
     private const val QR_CREATE_PATH = "/account/ma-cn-passport/web/createQRLogin"
     private const val QR_QUERY_PATH = "/account/ma-cn-passport/web/queryQRLoginStatus"
 
-    private const val ORIGIN_WEB = "https://webstatic.mihoyo.com"
-    private const val REFERER_WEB = "https://webstatic.mihoyo.com/"
-    private const val ORIGIN_ACT = "https://act.mihoyo.com"
-    private const val REFERER_ACT = "https://act.mihoyo.com/"
-    private const val ORIGIN_APP = "https://app.mihoyo.com"
-    private const val REFERER_APP = "https://app.mihoyo.com/"
+    private const val ORIGIN_WEB = ApiHosts.WEBSTATIC
+    private const val REFERER_WEB = "${ApiHosts.WEBSTATIC}/"
+    private const val ORIGIN_ACT = ApiHosts.ACT
+    private const val REFERER_ACT = "${ApiHosts.ACT}/"
+    private const val ORIGIN_APP = ApiHosts.APP
+    private const val REFERER_APP = "${ApiHosts.APP}/"
 
     private val JSON_TYPE = "application/json; charset=utf-8".toMediaType()
 
@@ -617,8 +617,8 @@ object MicaApi {
             .add("x-rpc-source", "v2.webLogin")
             .add("x-rpc-device_model", "Firefox%20131.0")
             .add("x-rpc-device_name", "Firefox")
-            .add("Origin", "https://user.miyoushe.com")
-            .add("Referer", "https://user.miyoushe.com/")
+            .add("Origin", ApiHosts.USER_MIYOUSHE)
+            .add("Referer", "${ApiHosts.USER_MIYOUSHE}/")
         if (qrSessionCookie.isNotBlank()) b.add("Cookie", qrSessionCookie)
         return b.build()
     }
@@ -765,7 +765,7 @@ object MicaApi {
             return false
         }
         Prefs.setCookie(context, normalizeCookie(raw, includeStoken = true))
-        LogHelper.i("Mica", "扫码登录成功 keys=${parseCookie(Prefs.cookie(context)).keys}")
+        LogHelper.i("Mica", "扫码登录成功")
         return true
     }
 
@@ -915,7 +915,7 @@ object MicaApi {
             Prefs.setServer(context, role.region)
             if (Prefs.nickname(context).isBlank()) Prefs.setNickname(context, role.nickname)
             Prefs.saveCurrentAccount(context)
-            LogHelper.i("Mica", "Cookie 自动续期并复验成功 keys=${parseCookie(candidate).keys}")
+            LogHelper.i("Mica", "Cookie 自动续期并复验成功")
             return "Cookie 自动续期成功，账号验证通过"
         } catch (e: Throwable) {
             Prefs.setCookie(context, original)
@@ -1665,6 +1665,14 @@ object MicaApi {
     private val statsCache =
         java.util.concurrent.ConcurrentHashMap<String, PlayerStats>()
 
+    /** 切换账号时清空进程内按账号留存的内存缓存，避免上一账号面板/战绩/统计残留。 */
+    fun clearAccountCache() {
+        challengeCache.clear()
+        avatarListMemCache.clear()
+        avatarDetailMemCache.clear()
+        statsCache.clear()
+    }
+
     /**
      * 读取米游社角色卡统计（含游玩/活跃天数）。
      * 接口 /game_record/app/hkrpg/api/index，字段位于 data.stats.active_days。
@@ -2070,8 +2078,8 @@ object MicaApi {
             if (System.currentTimeMillis() - o.optLong("ts", 0L) >= SIGN_CACHE_MS) return null
         }
         val arr = o.optJSONArray("awards")
-        val awards = (0 until (arr?.length() ?: 0)).mapNotNull { i ->
-            val a = arr!!.optJSONArray(i) ?: return@mapNotNull null
+        val awards = if (arr == null) emptyList() else (0 until arr.length()).mapNotNull { i ->
+            val a = arr.optJSONArray(i) ?: return@mapNotNull null
             val name = a.optString(0, "")
             if (name.isBlank()) null else SignAward(name, a.optInt(1, 0), a.optString(2, ""))
         }
@@ -2350,11 +2358,11 @@ object MicaApi {
 
     /** 真实跃迁记录 API（GET，authkey 鉴权，不带 Cookie/DS）。 */
     private const val GACHA_API_URL =
-        "https://public-operation-hkrpg.mihoyo.com/common/hkrpg_gacha_record/api/getGachaLog"
+        "${ApiHosts.PUBLIC_OPERATION_HKRPG}/common/hkrpg_gacha_record/api/getGachaLog"
 
     /** 来源 H5 页面地址，仅作 Referer 请求头，绝不是请求目标 host。 */
     private const val GACHA_REFERER =
-        "https://webstatic.mihoyo.com/hkrpg/event/e20211215gacha-v2/index.html"
+        "${ApiHosts.WEBSTATIC}/hkrpg/event/e20211215gacha-v2/index.html"
     private const val GACHA_UA =
         "Mozilla/5.0 (Linux; Android 14; Pixel 8) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/126.0.0.0 Mobile Safari/537.36"
 
@@ -2453,8 +2461,8 @@ object MicaApi {
                 val v2 = d?.optJSONArray("list_v2")
                 val list = d?.optJSONArray("list")
                 val arr = if (v2 != null && v2.length() > 0) v2 else (list ?: v2)
-                val records = (0 until (arr?.length() ?: 0)).mapNotNull { i ->
-                    val r = arr!!.optJSONObject(i) ?: return@mapNotNull null
+                val records = if (arr == null) emptyList() else (0 until arr.length()).mapNotNull { i ->
+                    val r = arr.optJSONObject(i) ?: return@mapNotNull null
                     GachaRecord(
                         id = r.optString("id", ""),
                         gachaType = r.optInt("gacha_type", gachaType),
@@ -2654,7 +2662,7 @@ object MicaApi {
             if (stuid.isNotBlank()) append("; stuid=$stuid")
             if (mid.isNotBlank()) append("; mid=$mid")
         }
-        val url = "https://api-takumi-record.mihoyo.com/game_record/app/hkrpg/api/note?$query"
+        val url = "${ApiHosts.TAKUMI_RECORD}/game_record/app/hkrpg/api/note?$query"
         val headers = appHeaders(context, query, "", cookie)
         val resp = httpGet(url, headers)
         LogHelper.i("Mica", "note(app) body=${resp.raw.take(180)}")
@@ -2674,8 +2682,8 @@ object MicaApi {
     private fun parseStaminaData(json: JSONObject): StaminaInfo {
         val d = json.optJSONObject("data") ?: throw MicaException(-1, "体力数据为空")
         val expeditionsArr = d.optJSONArray("expeditions")
-        val expeditions = (0 until (expeditionsArr?.length() ?: 0)).mapNotNull { i ->
-            val e = expeditionsArr!!.optJSONObject(i) ?: return@mapNotNull null
+        val expeditions = if (expeditionsArr == null) emptyList() else (0 until expeditionsArr.length()).mapNotNull { i ->
+            val e = expeditionsArr.optJSONObject(i) ?: return@mapNotNull null
             ExpeditionInfo(
                 remainingTime = e.optLong("remaining_time", 0),
                 status = e.optString("status", ""),

@@ -42,7 +42,7 @@ object AlarmHelper {
     /** 提醒前 1 分钟的游玩天数预热闹钟 requestCode 基址 */
     private const val PRE_BASE = 0x5B20
     private const val MULTI_MAX = 10
-    /** 周期任务兜底闹钟间隔（与 Worker 15min 对齐） */
+    /** 周期任务兜底闹钟间隔（保持 15min 精确兜底；WM 栈已按任务差异化，闹钟栈不降频以保证不漏跑） */
     private val PERIODIC_TASKS_INTERVAL_MS = 15 * 60_000L
 
     /** 弹窗「N 分钟后提醒我」：注册一次性延时闹钟 */
@@ -109,7 +109,7 @@ object AlarmHelper {
         }.onFailure { LogHelper.e("Alarm", "游戏打开校验注册失败", it) }
     }
 
-    private fun periodicTasksPendingIntent(context: Context, flags: Int): PendingIntent =
+    private fun periodicTasksPendingIntent(context: Context, flags: Int): PendingIntent? =
         PendingIntent.getBroadcast(
             context, REQUEST_PERIODIC_TASKS,
             Intent(context, AlarmReceiver::class.java).setAction(ACTION_PERIODIC_TASKS),
@@ -124,7 +124,7 @@ object AlarmHelper {
     fun schedulePeriodicTasksAlarm(context: Context, delayMs: Long = PERIODIC_TASKS_INTERVAL_MS) {
         val am = context.getSystemService(Context.ALARM_SERVICE) as AlarmManager
         val triggerAt = System.currentTimeMillis() + delayMs.coerceAtLeast(60_000L)
-        val pi = periodicTasksPendingIntent(context, PendingIntent.FLAG_UPDATE_CURRENT)
+        val pi = periodicTasksPendingIntent(context, PendingIntent.FLAG_UPDATE_CURRENT) ?: return
         runCatching {
             am.setAndAllowWhileIdle(AlarmManager.RTC_WAKEUP, triggerAt, pi)
             LogHelper.i("Alarm", "周期任务兜底闹钟已注册：${delayMs / 60_000}分钟后")
@@ -153,8 +153,9 @@ object AlarmHelper {
     fun cancelPeriodicTasksAlarm(context: Context) {
         val am = context.getSystemService(Context.ALARM_SERVICE) as AlarmManager
         runCatching {
-            val pi = periodicTasksPendingIntent(context, PendingIntent.FLAG_UPDATE_CURRENT)
-            am.cancel(pi); pi.cancel()
+            periodicTasksPendingIntent(context, PendingIntent.FLAG_UPDATE_CURRENT)?.let { pi ->
+                am.cancel(pi); pi.cancel()
+            }
         }
     }
 

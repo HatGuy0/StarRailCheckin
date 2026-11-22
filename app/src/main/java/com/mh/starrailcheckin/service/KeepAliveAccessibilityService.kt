@@ -2,11 +2,13 @@ package com.mh.starrailcheckin.service
 
 import android.accessibilityservice.AccessibilityService
 import android.view.accessibility.AccessibilityEvent
+import com.mh.starrailcheckin.util.AppScope
 import com.mh.starrailcheckin.util.CheckinHelper
 import com.mh.starrailcheckin.util.GameLauncher
 import com.mh.starrailcheckin.util.LogHelper
 import com.mh.starrailcheckin.util.Prefs
 import com.mh.starrailcheckin.util.UsageStatsHelper
+import kotlinx.coroutines.launch
 
 /**
  * 无障碍服务（保活 + 游戏打开检测）：
@@ -38,7 +40,7 @@ class KeepAliveAccessibilityService : AccessibilityService() {
         lastGameEventAt = now
 
         val ctx = applicationContext
-        Thread {
+        AppScope.scope.launch {
             runCatching {
                 if (Prefs.checkinScheme(ctx) == 2) {
                     CheckinHelper.noteGameOpened(ctx)
@@ -49,7 +51,7 @@ class KeepAliveAccessibilityService : AccessibilityService() {
                     LogHelper.i("Accessibility", "检测到游戏窗口（$pkg），方案1 已记打卡历史")
                 }
             }.onFailure { LogHelper.e("Accessibility", "游戏窗口事件处理失败", it) }
-        }.start()
+        }
     }
 
     override fun onInterrupt() {

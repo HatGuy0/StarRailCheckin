@@ -1,6 +1,7 @@
 package com.mh.starrailcheckin.ui.profile
 
 import android.content.Context
+import com.mh.starrailcheckin.util.LogHelper
 import org.json.JSONArray
 import org.json.JSONObject
 import java.text.SimpleDateFormat
@@ -33,7 +34,9 @@ object EnkaHistory {
     private fun writeAll(ctx: Context, arr: JSONArray) {
         try {
             file(ctx).writeText(arr.toString())
-        } catch (_: Exception) { }
+        } catch (e: Exception) {
+            LogHelper.e("EnkaHistory", "写入橱窗历史快照失败", e)
+        }
     }
 
     /** 保存一条新快照（置顶）。 */

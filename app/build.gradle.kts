@@ -21,8 +21,8 @@ android {
         applicationId = "com.mh.starrailcheckin"
         minSdk = 26
         targetSdk = 36
-        versionCode = 72
-        versionName = "2.2-bate4"
+        versionCode = 79
+        versionName = "2.22"
     }
 
     signingConfigs {
@@ -36,7 +36,8 @@ android {
 
     buildTypes {
         release {
-            isMinifyEnabled = false
+            isMinifyEnabled = true
+            isShrinkResources = true
             proguardFiles(getDefaultProguardFile("proguard-android-optimize.txt"), "proguard-rules.pro")
             signingConfig = signingConfigs.getByName("release")
         }
@@ -64,7 +65,7 @@ dependencies {
     implementation("androidx.compose.ui:ui:1.10.3")
     implementation("androidx.compose.foundation:foundation:1.10.3")
     implementation("androidx.compose.material3:material3:1.3.2")
-    implementation("androidx.compose.material:material-icons-extended:1.6.0")
+    implementation("androidx.compose.material:material-icons-core:1.6.0")
     implementation("androidx.activity:activity-compose:1.10.1")
 
     // Kyant0 backdrop 液态玻璃库（android 分支 1.0.6 配套 shapes 1.2.0）

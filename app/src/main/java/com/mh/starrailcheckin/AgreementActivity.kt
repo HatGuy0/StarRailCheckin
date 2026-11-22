@@ -21,15 +21,16 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.text.LinkAnnotation
 import androidx.compose.ui.text.SpanStyle
 import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.buildAnnotatedString
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
+import androidx.compose.ui.text.withLink
 import androidx.compose.ui.text.withStyle
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
-import androidx.compose.foundation.text.ClickableText
 import com.mh.starrailcheckin.ui.about.PolicyActivity
 import com.mh.starrailcheckin.ui.guide.GuideBackground
 import com.mh.starrailcheckin.ui.guide.GuidePrimaryButton
@@ -42,8 +43,6 @@ class AgreementActivity : AppCompatActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         enableEdgeToEdge()
-        window.addFlags(WindowManager.LayoutParams.FLAG_DRAWS_SYSTEM_BAR_BACKGROUNDS)
-        window.statusBarColor = android.graphics.Color.TRANSPARENT
 
         setContent {
             StarRailCheckinTheme {
@@ -158,34 +157,40 @@ fun AgreementScreen(onNext: () -> Unit) {
                 Spacer(modifier = Modifier.width(8.dp))
                 val agreeText = buildAnnotatedString {
                     append("我已阅读并同意")
-                    pushStringAnnotation("policy", PolicyActivity.TYPE_AGREEMENT)
-                    withStyle(
-                        SpanStyle(
-                            color = Color.White,
-                            fontWeight = FontWeight.Bold
+                    withLink(
+                        LinkAnnotation.Clickable(
+                            tag = "policy",
+                            linkInteractionListener = { openPolicy(PolicyActivity.TYPE_AGREEMENT) }
                         )
-                    ) { append("《用户协议》") }
-                    pop()
+                    ) {
+                        withStyle(
+                            SpanStyle(
+                                color = Color.White,
+                                fontWeight = FontWeight.Bold
+                            )
+                        ) { append("《用户协议》") }
+                    }
                     append("与")
-                    pushStringAnnotation("policy", PolicyActivity.TYPE_PRIVACY)
-                    withStyle(
-                        SpanStyle(
-                            color = Color.White,
-                            fontWeight = FontWeight.Bold
+                    withLink(
+                        LinkAnnotation.Clickable(
+                            tag = "policy",
+                            linkInteractionListener = { openPolicy(PolicyActivity.TYPE_PRIVACY) }
                         )
-                    ) { append("《隐私政策》") }
-                    pop()
+                    ) {
+                        withStyle(
+                            SpanStyle(
+                                color = Color.White,
+                                fontWeight = FontWeight.Bold
+                            )
+                        ) { append("《隐私政策》") }
+                    }
                 }
-                ClickableText(
+                Text(
                     text = agreeText,
                     style = TextStyle(
                         fontSize = 14.sp,
                         color = Color.White.copy(alpha = 0.8f)
-                    ),
-                    onClick = { offset ->
-                        agreeText.getStringAnnotations("policy", offset, offset)
-                            .firstOrNull()?.let { openPolicy(it.item) }
-                    }
+                    )
                 )
             }
 

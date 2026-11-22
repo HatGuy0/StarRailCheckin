@@ -8,6 +8,7 @@ import android.webkit.CookieManager
 import android.webkit.WebView
 import android.webkit.WebViewClient
 import android.widget.Toast
+import androidx.activity.OnBackPressedCallback
 import androidx.appcompat.app.AppCompatActivity
 import com.mh.starrailcheckin.network.MicaApi
 
@@ -57,6 +58,18 @@ class LoginWebViewActivity : AppCompatActivity() {
     @SuppressLint("SetJavaScriptEnabled")
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
+
+        onBackPressedDispatcher.addCallback(this, object : OnBackPressedCallback(true) {
+            override fun handleOnBackPressed() {
+                val wv = webView
+                if (wv != null && wv.canGoBack()) {
+                    wv.goBack()
+                } else {
+                    isEnabled = false
+                    onBackPressedDispatcher.onBackPressed()
+                }
+            }
+        })
 
         CookieManager.getInstance().setAcceptCookie(true)
         // 清掉 WebView 里可能残留的失效 Cookie，避免刚打开就被旧凭证触发登录校验
@@ -120,16 +133,6 @@ class LoginWebViewActivity : AppCompatActivity() {
                 if (result.second) finish()
             }
         }.start()
-    }
-
-    @Deprecated("Deprecated in Java")
-    override fun onBackPressed() {
-        val wv = webView
-        if (wv != null && wv.canGoBack()) {
-            wv.goBack()
-        } else {
-            super.onBackPressed()
-        }
     }
 
     override fun onDestroy() {

@@ -36,6 +36,8 @@ object CheckinHelper {
             Prefs.setTodayChecked(context, true)
             Prefs.saveCheckHistory(context, Prefs.todayNaturalStr(), true)
             Prefs.setScheme2Checked(context)
+            // 收官值同步到本次观测到的真实天数，避免跨日兜底基准冻结在凌晨旧值
+            Prefs.setLastClosedDay(context, currentDays, Prefs.todayStr())
             NotifyHelper.cancelRemindNotification(context)
             LogHelper.i("Checkin", "天数 $baseline→$currentDays（+${currentDays - baseline}），打卡成功")
             return true

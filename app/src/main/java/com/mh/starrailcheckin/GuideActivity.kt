@@ -41,8 +41,6 @@ class GuideActivity : AppCompatActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         enableEdgeToEdge()
-        window.addFlags(WindowManager.LayoutParams.FLAG_DRAWS_SYSTEM_BAR_BACKGROUNDS)
-        window.statusBarColor = android.graphics.Color.TRANSPARENT
 
         setContent {
             StarRailCheckinTheme {
@@ -67,6 +65,7 @@ fun GuideScreen(onNext: () -> Unit) {
     var batteryOn by remember { mutableStateOf(false) }
 
     // 检查权限状态的函数
+    @Suppress("DEPRECATION") // AppOps 权限检查在 UsageStats 场景暂无等价新 API
     fun checkPermissions() {
         val appOps = context.getSystemService(android.app.AppOpsManager::class.java)
         usageOn = appOps.unsafeCheckOpNoThrow(
@@ -184,7 +183,7 @@ fun GuideScreen(onNext: () -> Unit) {
             PermissionItem(
                 iconRes = R.drawable.ic_perm_accessibility,
                 title = "无障碍权限",
-                description = "用于辅助保活和后台运行",
+                description = "辅助保活与游戏启动检测，不读取界面内容",
                 enabled = accessibilityOn,
                 onClick = {
                     context.startActivity(

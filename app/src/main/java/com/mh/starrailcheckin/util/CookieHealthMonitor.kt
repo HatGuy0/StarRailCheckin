@@ -31,7 +31,10 @@ object CookieHealthMonitor {
         val state = Prefs.cookieHealthState(context)
         val minIntervalMs = Prefs.cookieCheckIntervalMin(context) * 60_000L
         val elapsed = System.currentTimeMillis() - state.lastCheckAt
-        if (state.accountId == accountId && elapsed in 0L until minIntervalMs) return
+        if (state.accountId == accountId && elapsed in 0L until minIntervalMs) {
+            LogHelper.i("CookieHealth", "节流中，${(minIntervalMs - elapsed) / 60_000L} 分钟后再检查")
+            return
+        }
         // 离线守卫：不更新检查时刻，避免离线占掉节流窗口
         if (!NetworkHelper.isOnline(context)) {
             LogHelper.w("CookieHealth", "当前离线，跳过 Cookie 检查")
@@ -112,7 +115,7 @@ object CookieHealthMonitor {
             val message = if (knownInvalid) "无法续期：$detail；$INVALID_MESSAGE" else "无法续期：$detail"
             if (knownInvalid) {
                 saveInvalid(
-                    context, accountId, previous?.lastCheckAt ?: 0L, message, detail, previous
+                    context, accountId, previous.lastCheckAt, message, detail, previous
                 )
             } else {
                 saveError(context, accountId, previous?.lastCheckAt ?: 0L, message, previous)

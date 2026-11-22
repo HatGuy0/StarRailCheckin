@@ -3,6 +3,7 @@ package com.mh.starrailcheckin.util
 import android.content.Context
 import android.content.Intent
 import com.mh.starrailcheckin.network.MicaApi
+import kotlinx.coroutines.launch
 
 /** 一键启动星穹铁道（根据云游戏开关切换包名） */
 object GameLauncher {
@@ -45,7 +46,7 @@ object GameLauncher {
         Prefs.setGameOpenCheckDueAt(ctx, dueAt)
         AlarmHelper.scheduleGameOpenCheck(ctx, AlarmHelper.GAME_OPEN_CHECK_DELAY_MS)
         // 立刻发起一次 force 刷新（在 IO 线程），拿到最新"打开前"天数
-        Thread {
+        AppScope.scope.launch {
             runCatching { MicaApi.fetchPlayerStats(ctx, force = true) }
                 .onSuccess { stats ->
                     Prefs.setGameOpenBaseline(ctx, stats.activeDays)
@@ -57,6 +58,6 @@ object GameLauncher {
                     }
                 }
                 .onFailure { LogHelper.e("Game", "启动游戏时 force 刷新天数失败，仍会安排 20 分钟校验", it) }
-        }.start()
+        }
     }
 }

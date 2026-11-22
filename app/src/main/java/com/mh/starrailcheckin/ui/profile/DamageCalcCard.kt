@@ -1,6 +1,6 @@
 package com.mh.starrailcheckin.ui.profile
 
-import android.util.Log
+import com.mh.starrailcheckin.util.LogHelper
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
@@ -67,7 +67,7 @@ internal fun DamageCalcCard(d: DetailUi) {
         rows = result.getOrNull()
         if (rows == null) {
             error = "miao 伤害规则执行失败，请稍后重试"
-            result.exceptionOrNull()?.let { Log.e("DamageCalcCard", "miao rule failed: $charName", it) }
+            result.exceptionOrNull()?.let { LogHelper.e("DamageCalcCard", "miao rule failed: $charName", it) }
         }
         loading = false
     }
@@ -80,13 +80,13 @@ internal fun DamageCalcCard(d: DetailUi) {
             fontSize = 13.sp,
             fontWeight = FontWeight.Medium,
             color = MiuixTheme.colorScheme.onBackground,
-            modifier = Modifier.padding(start = 2.dp, bottom = 6.dp)
+            modifier = Modifier.padding(start = 2.dp, end = 2.dp, bottom = 6.dp)
         )
 
         Panel {
             Text(
                 text = "目标为80级弱点敌人",
-                fontSize = 8.5.sp,
+                fontSize = 9.sp,
                 color = MiuixTheme.colorScheme.onSurfaceSecondary
             )
             Spacer(Modifier.height(8.dp))
@@ -94,20 +94,20 @@ internal fun DamageCalcCard(d: DetailUi) {
             Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                 Text(
                     text = "伤害类型",
-                    fontSize = 8.sp,
+                    fontSize = 9.sp,
                     color = MiuixTheme.colorScheme.onSurfaceSecondary,
                     modifier = Modifier.weight(1.0f)
                 )
                 Text(
                     text = "暴击/数值",
-                    fontSize = 8.sp,
+                    fontSize = 9.sp,
                     color = MiuixTheme.colorScheme.onSurfaceSecondary,
                     textAlign = TextAlign.End,
                     modifier = Modifier.width(64.dp)
                 )
                 Text(
                     text = "期望伤害",
-                    fontSize = 8.sp,
+                    fontSize = 9.sp,
                     color = MiuixTheme.colorScheme.onSurfaceSecondary,
                     textAlign = TextAlign.End,
                     modifier = Modifier.width(64.dp)
@@ -143,12 +143,12 @@ internal fun DamageCalcCard(d: DetailUi) {
             Spacer(Modifier.height(6.dp))
             Text(
                 text = "伤害计算来源：miao-plugin calc.js（全角色统一规则）",
-                fontSize = 7.5.sp,
+                fontSize = 9.sp,
                 color = MiuixTheme.colorScheme.onSurfaceSecondary
             )
             Text(
                 text = "倍率数据来源：miao-plugin data.json · 自动跟随上游更新",
-                fontSize = 7.5.sp,
+                fontSize = 9.sp,
                 color = MiuixTheme.colorScheme.onSurfaceSecondary
             )
         }
@@ -164,18 +164,10 @@ private fun DamageRow(row: MiaoRulesEngine.Row, formatter: NumberFormat) {
         Column(modifier = Modifier.weight(1.0f)) {
             Text(
                 text = row.title,
-                fontSize = 9.5.sp,
+                fontSize = 10.sp,
                 color = MiuixTheme.colorScheme.onSurface,
-                lineHeight = 13.sp
+                lineHeight = 14.sp
             )
-            row.debug?.takeIf { it.isNotBlank() }?.let {
-                Text(
-                    text = it,
-                    fontSize = 7.sp,
-                    color = MiuixTheme.colorScheme.onSurfaceSecondary,
-                    lineHeight = 9.sp
-                )
-            }
         }
         Text(
             text = row.text ?: row.crit?.let(formatter::format) ?: "—",

@@ -14,6 +14,7 @@ import androidx.compose.foundation.layout.WindowInsets
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
@@ -41,11 +42,13 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.mh.starrailcheckin.LoginWebViewActivity
 import com.mh.starrailcheckin.R
+import com.mh.starrailcheckin.network.MicaApi
 import com.mh.starrailcheckin.ui.LightBaseActivity
 import com.mh.starrailcheckin.ui.components.AppCard
 import com.mh.starrailcheckin.ui.components.DialogButtonRow
 import com.mh.starrailcheckin.ui.components.DialogSingleButton
 import com.mh.starrailcheckin.ui.components.NavEventOwnerHost
+import com.mh.starrailcheckin.ui.theme.LocalSuccessColor
 import com.mh.starrailcheckin.ui.theme.StarRailCheckinTheme
 import com.mh.starrailcheckin.util.MultiAccountSigner
 import com.mh.starrailcheckin.util.Prefs
@@ -141,6 +144,7 @@ private fun AccountScreen(onBack: () -> Unit) {
         modifier = Modifier
             .fillMaxSize()
             .background(MiuixTheme.colorScheme.background)
+            .navigationBarsPadding()
     ) {
         TopAppBar(
             title = "多账号管理",
@@ -210,9 +214,9 @@ private fun AccountScreen(onBack: () -> Unit) {
                 val isActive = account.id == activeId
                 val health = Prefs.cookieHealthStateFor(context, account.id)
                 val (healthText, healthColor) = when (health?.status) {
-                    "healthy" -> "Cookie 正常" to Color(0xFF2E7D32)
-                    "invalid" -> "Cookie 可能失效" to Color(0xFFC62828)
-                    "error" -> "检查失败" to Color(0xFFEF6C00)
+                    "healthy" -> "Cookie 正常" to LocalSuccessColor.current
+                    "invalid" -> "Cookie 可能失效" to MiuixTheme.colorScheme.error
+                    "error" -> "检查失败" to MiuixTheme.colorScheme.error
                     else -> "未检查" to MiuixTheme.colorScheme.onSurfaceSecondary
                 }
                 val lastSign = Prefs.lastSignAt(context, account.id)
@@ -307,6 +311,7 @@ private fun AccountScreen(onBack: () -> Unit) {
                                 enabled = !isActive,
                                 onClick = {
                                     if (Prefs.switchAccount(context, account.id)) {
+                                        MicaApi.clearAccountCache()
                                         Toast.makeText(context, "已切换到 ${account.nickname}", Toast.LENGTH_SHORT).show()
                                         refresh()
                                     }
@@ -364,6 +369,7 @@ private fun AccountScreen(onBack: () -> Unit) {
                     dismissText = "取消",
                     onConfirm = {
                         Prefs.removeAccount(context, target.id)
+                        MicaApi.clearAccountCache()
                         deleteTarget = null
                         refresh()
                         Toast.makeText(context, "已删除", Toast.LENGTH_SHORT).show()

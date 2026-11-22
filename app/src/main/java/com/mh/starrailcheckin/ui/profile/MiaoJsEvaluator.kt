@@ -384,6 +384,7 @@ internal object MiaoJsEvaluator {
         else -> Undefined
     }
 
+    // 泛型擦除下 as? 只校验容器类型（Map/List），键值类型无法在运行时校验，故抑制 unchecked 警告。
     @Suppress("UNCHECKED_CAST")
     private fun writeReference(node: JSONObject, value: Any?, env: Env) {
         when (node.optString("type")) {
@@ -395,10 +396,11 @@ internal object MiaoJsEvaluator {
                 val target = eval(node.optJSONObject("object"), env)
                 val key = memberName(node, env)
                 when (target) {
-                    is MutableMap<*, *> -> (target as MutableMap<String, Any?>)[key] = value
+                    is MutableMap<*, *> -> (target as? MutableMap<String, Any?>)?.let { it[key] = value }
                     is MutableList<*> -> key.toIntOrNull()?.let { index ->
-                        val list = target as MutableList<Any?>
-                        if (index in list.indices) list[index] = value
+                        (target as? MutableList<Any?>)?.let { list ->
+                            if (index in list.indices) list[index] = value
+                        }
                     }
                 }
             }

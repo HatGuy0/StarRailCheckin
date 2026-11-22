@@ -31,17 +31,6 @@
 
 环境要求：JDK 17、Android SDK（compileSdk 37，Build Tools 37.0.0）。
 
-```bash
-# 克隆后在工程根目录
-# macOS / Linux：
-./gradlew :app:assembleRelease
-# Windows（PowerShell / CMD）：
-gradlew.bat :app:assembleRelease
-```
-
-产物位于 `app/build/outputs/apk/release/`。
-签名密钥与口令不随源码分发：`release.jks` 不入库，口令 / 别名从被忽略的本地 `local.properties`（`STORE_PASSWORD` / `KEY_ALIAS` / `KEY_PASSWORD`）读取；未配置签名时可使用调试签名构建。
-
 ## 资源与素材说明
 
 - 仓库**不随源码分发**角色头像（`assets/avatar/`）与立绘（`assets/portrait/`）；其余光锥、遗器、技能、奖励、元素与命途图标随源码入库。

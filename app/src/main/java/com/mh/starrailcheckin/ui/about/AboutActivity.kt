@@ -69,9 +69,10 @@ import top.yukonga.miuix.kmp.basic.TopAppBar
 import top.yukonga.miuix.kmp.overlay.OverlayDialog
 import top.yukonga.miuix.kmp.theme.MiuixTheme
 
-/** 作者 B 站主页与 QQ 群号。 */
+/** 作者 GitHub 主页、仓库与 QQ 群号。 */
 object AboutLinks {
-    const val AUTHOR_SPACE = BilibiliApi.SPACE_URL
+    const val GITHUB_USERNAME = "HatGuy0"
+    const val GITHUB_PROFILE_URL = "https://github.com/HatGuy0"
     const val QQ_GROUP_NUMBER = "981703967"
     const val REPO_URL = "https://github.com/HatGuy0/StarRailCheckin"
     const val DEFAULT_AUTHOR_NAME = "mh梦虎"
@@ -218,7 +219,7 @@ private fun AboutScreen(onBack: () -> Unit) {
             Row(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .clickable { openUrl(AboutLinks.AUTHOR_SPACE) }
+                    .clickable { openUrl(AboutLinks.GITHUB_PROFILE_URL) }
                     .padding(16.dp),
                 verticalAlignment = Alignment.CenterVertically
             ) {
@@ -233,7 +234,7 @@ private fun AboutScreen(onBack: () -> Unit) {
                         overflow = TextOverflow.Ellipsis
                     )
                     Text(
-                        text = "@${AboutLinks.DEFAULT_AUTHOR_NAME}",
+                        text = "@${AboutLinks.GITHUB_USERNAME}",
                         style = MiuixTheme.textStyles.footnote1,
                         color = MiuixTheme.colorScheme.onSurfaceSecondary
                     )

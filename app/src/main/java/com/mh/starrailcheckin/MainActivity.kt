@@ -8,17 +8,12 @@ import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Box
-import androidx.compose.foundation.layout.Row
-import androidx.compose.foundation.layout.Spacer
-import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.fillMaxSize
-import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.layout.statusBarsPadding
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
-import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.layout.WindowInsets
 import androidx.compose.material3.Icon
 import androidx.compose.material3.Text
@@ -69,11 +64,8 @@ import com.mh.starrailcheckin.network.MicaApi
 import com.mh.starrailcheckin.network.UpdateChecker
 import com.mh.starrailcheckin.network.UpdateCheckResult
 import com.mh.starrailcheckin.network.RemoteRelease
-import com.mh.starrailcheckin.ui.about.AboutActivity
-import com.mh.starrailcheckin.ui.components.ReleaseNotesBlock
+import com.mh.starrailcheckin.ui.components.UpdateReleaseDialog
 import androidx.core.content.pm.PackageInfoCompat
-import top.yukonga.miuix.kmp.overlay.OverlayDialog
-import top.yukonga.miuix.kmp.basic.TextButton
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
@@ -357,34 +349,12 @@ fun AppMain() {
             }
         }
 
-        // 启动自动检查到新版本：弹窗提示，去更新跳关于页走完整下载安装流程
+        // 启动自动检查到新版本：弹窗直接提供浏览器下载 / 下载安装，交互与关于页一致
         autoUpdateRelease?.let { rel ->
-            OverlayDialog(
-                show = true,
+            UpdateReleaseDialog(
                 title = "发现新版本",
-                onDismissRequest = { autoUpdateRelease = null },
-                content = {
-                    Text(
-                        text = "新版本 ${rel.versionName} 已发布",
-                        color = MiuixTheme.colorScheme.onSurface
-                    )
-                    ReleaseNotesBlock(
-                        notes = rel.releaseNotes,
-                        modifier = Modifier.padding(top = 8.dp)
-                    )
-                    Spacer(Modifier.height(12.dp))
-                    Row(
-                        modifier = Modifier.fillMaxWidth(),
-                        horizontalArrangement = Arrangement.End
-                    ) {
-                        TextButton(text = "暂不", onClick = { autoUpdateRelease = null })
-                        Spacer(Modifier.width(8.dp))
-                        TextButton(text = "去更新", onClick = {
-                            autoUpdateRelease = null
-                            context.startActivity(Intent(context, AboutActivity::class.java))
-                        })
-                    }
-                }
+                release = rel,
+                onDismiss = { autoUpdateRelease = null }
             )
         }
     }

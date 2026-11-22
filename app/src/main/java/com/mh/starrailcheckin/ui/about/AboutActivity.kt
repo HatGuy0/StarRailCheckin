@@ -5,8 +5,6 @@ import android.graphics.Bitmap
 import android.net.Uri
 import android.os.Bundle
 import androidx.activity.compose.setContent
-import androidx.activity.compose.rememberLauncherForActivityResult
-import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
@@ -30,7 +28,6 @@ import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
-import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -48,20 +45,14 @@ import androidx.compose.ui.unit.sp
 import androidx.appcompat.app.AppCompatActivity
 import androidx.core.content.pm.PackageInfoCompat
 import com.mh.starrailcheckin.R
-import com.mh.starrailcheckin.network.AppUpdateDownloader
 import com.mh.starrailcheckin.network.BilibiliApi
 import com.mh.starrailcheckin.network.RemoteRelease
 import com.mh.starrailcheckin.network.UpdateCheckResult
 import com.mh.starrailcheckin.network.UpdateChecker
-import com.mh.starrailcheckin.network.UpdateDownloadResult
-import com.mh.starrailcheckin.util.AppInstaller
-import com.mh.starrailcheckin.util.PermissionHelper
 import androidx.compose.material3.CircularProgressIndicator
-import androidx.compose.material3.LinearProgressIndicator
-import java.io.File
 import com.mh.starrailcheckin.ui.components.AppCard
 import com.mh.starrailcheckin.ui.components.NavEventOwnerHost
-import com.mh.starrailcheckin.ui.components.ReleaseNotesBlock
+import com.mh.starrailcheckin.ui.components.UpdateReleaseContent
 import com.mh.starrailcheckin.ui.profile.EnkaImageLoader
 import com.mh.starrailcheckin.ui.theme.DarkBackgroundGradient
 import com.mh.starrailcheckin.ui.theme.LightBackgroundGradient
@@ -69,7 +60,6 @@ import com.mh.starrailcheckin.ui.theme.LocalAppDarkTheme
 import com.mh.starrailcheckin.ui.theme.StarRailCheckinTheme
 import com.mh.starrailcheckin.util.Prefs
 import kotlinx.coroutines.Dispatchers
-import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import top.yukonga.miuix.kmp.basic.Icon
 import top.yukonga.miuix.kmp.basic.IconButton
@@ -117,25 +107,11 @@ private fun AboutScreen(onBack: () -> Unit) {
     val versionName = packageInfo?.versionName ?: "2.1"
     val localVersionCode = packageInfo?.let { PackageInfoCompat.getLongVersionCode(it).toInt() } ?: 0
 
-    val scope = rememberCoroutineScope()
     var authorName by remember { mutableStateOf(AboutLinks.DEFAULT_AUTHOR_NAME) }
     var authorFace by remember { mutableStateOf("") }
     var showUpdate by remember { mutableStateOf(false) }
     var updateState by remember { mutableStateOf<UpdateUiState>(UpdateUiState.Checking) }
     var retryTick by remember { mutableStateOf(0) }
-    var pendingApk by remember { mutableStateOf<File?>(null) }
-
-    // 从「安装未知应用」设置页返回后：已授权则直接拉起安装，否则停留在待授权态。
-    val installSettingsLauncher = rememberLauncherForActivityResult(
-        ActivityResultContracts.StartActivityForResult()
-    ) {
-        val apk = pendingApk
-        when {
-            apk != null && PermissionHelper.canInstallPackages(context) ->
-                AppInstaller.installApk(context, apk)
-            apk != null -> updateState = UpdateUiState.NeedsPermission(apk)
-        }
-    }
 
     // 读取本地缓存；缓存有效则直接用，否则 IO 线程拉取 B 站公开资料，失败回退本地。
     LaunchedEffect(Unit) {
@@ -176,49 +152,6 @@ private fun AboutScreen(onBack: () -> Unit) {
             context.startActivity(Intent(Intent.ACTION_VIEW, Uri.parse(url)))
         }.onFailure {
             android.widget.Toast.makeText(context, "无法打开链接", android.widget.Toast.LENGTH_SHORT).show()
-        }
-    }
-
-    fun openRelease(release: RemoteRelease) {
-        val url = release.apkUrl?.takeIf { it.isNotBlank() } ?: release.releaseUrl
-        openUrl(url)
-    }
-
-    /** 下载更新包；完成后已授权则直接安装，未授权则跳转系统安装权限页，返回后再安装。 */
-    fun startDownload(release: RemoteRelease) {
-        val url = release.apkUrl
-        if (url.isNullOrBlank()) {
-            updateState = UpdateUiState.DownloadFailed(release, "未找到可下载的安装包")
-            return
-        }
-        scope.launch {
-            updateState = UpdateUiState.Downloading(0)
-            val result = withContext(Dispatchers.IO) {
-                AppUpdateDownloader.download(context, url, release.apkSize) { percent, _, _ ->
-                    scope.launch { updateState = UpdateUiState.Downloading(percent) }
-                }
-            }
-            when (result) {
-                is UpdateDownloadResult.Success -> {
-                    pendingApk = result.file
-                    if (PermissionHelper.canInstallPackages(context)) {
-                        AppInstaller.installApk(context, result.file)
-                    } else {
-                        updateState = UpdateUiState.NeedsPermission(result.file)
-                        runCatching {
-                            installSettingsLauncher.launch(
-                                PermissionHelper.installSourcesSettingsIntent(context)
-                            )
-                        }.onFailure {
-                            android.widget.Toast.makeText(
-                                context, "无法打开安装权限设置", android.widget.Toast.LENGTH_SHORT
-                            ).show()
-                        }
-                    }
-                }
-                is UpdateDownloadResult.Failed ->
-                    updateState = UpdateUiState.DownloadFailed(release, result.message)
-            }
         }
     }
 
@@ -375,109 +308,10 @@ private fun AboutScreen(onBack: () -> Unit) {
                     }
 
                     is UpdateUiState.HasUpdate -> {
-                        Text(
-                            text = "发现新版本 ${state.release.versionName}",
-                            style = MiuixTheme.textStyles.title3,
-                            fontWeight = FontWeight.Bold
+                        UpdateReleaseContent(
+                            release = state.release,
+                            onDismiss = { showUpdate = false }
                         )
-                        ReleaseNotesBlock(
-                            notes = state.release.releaseNotes,
-                            modifier = Modifier.padding(top = 8.dp)
-                        )
-                        if (state.release.apkSize > 0) {
-                            Spacer(Modifier.height(8.dp))
-                            Text(
-                                text = "安装包大小：${formatApkSize(state.release.apkSize)}",
-                                style = MiuixTheme.textStyles.footnote1,
-                                color = MiuixTheme.colorScheme.onSurfaceSecondary
-                            )
-                        }
-                        Spacer(Modifier.height(12.dp))
-                        Row(
-                            horizontalArrangement = Arrangement.End,
-                            modifier = Modifier.fillMaxWidth()
-                        ) {
-                            top.yukonga.miuix.kmp.basic.TextButton(
-                                text = "关闭",
-                                onClick = { showUpdate = false }
-                            )
-                            Spacer(Modifier.width(8.dp))
-                            top.yukonga.miuix.kmp.basic.TextButton(
-                                text = "浏览器下载",
-                                onClick = { openRelease(state.release) }
-                            )
-                            Spacer(Modifier.width(8.dp))
-                            top.yukonga.miuix.kmp.basic.TextButton(
-                                text = "下载安装",
-                                onClick = { startDownload(state.release) }
-                            )
-                        }
-                    }
-
-                    is UpdateUiState.Downloading -> {
-                        Text(
-                            text = if (state.percent >= 0) "正在下载… ${state.percent}%" else "正在下载…",
-                            style = MiuixTheme.textStyles.body2
-                        )
-                        Spacer(Modifier.height(8.dp))
-                        LinearProgressIndicator(
-                            progress = { if (state.percent >= 0) state.percent / 100f else 0f },
-                            modifier = Modifier.fillMaxWidth()
-                        )
-                    }
-
-                    is UpdateUiState.DownloadFailed -> {
-                        Text(
-                            text = "下载失败：${state.message}",
-                            style = MiuixTheme.textStyles.body2
-                        )
-                        Spacer(Modifier.height(12.dp))
-                        Row(
-                            horizontalArrangement = Arrangement.End,
-                            modifier = Modifier.fillMaxWidth()
-                        ) {
-                            top.yukonga.miuix.kmp.basic.TextButton(
-                                text = "关闭",
-                                onClick = { showUpdate = false }
-                            )
-                            Spacer(Modifier.width(8.dp))
-                            top.yukonga.miuix.kmp.basic.TextButton(
-                                text = "重试",
-                                onClick = { startDownload(state.release) }
-                            )
-                        }
-                    }
-
-                    is UpdateUiState.NeedsPermission -> {
-                        Text(
-                            text = "安装包已下载完成。\n\n请在系统设置中允许「星铁打卡小助手」安装未知应用，返回后将自动开始安装。",
-                            style = MiuixTheme.textStyles.body2
-                        )
-                        Spacer(Modifier.height(12.dp))
-                        Row(
-                            horizontalArrangement = Arrangement.End,
-                            modifier = Modifier.fillMaxWidth()
-                        ) {
-                            top.yukonga.miuix.kmp.basic.TextButton(
-                                text = "关闭",
-                                onClick = { showUpdate = false }
-                            )
-                            Spacer(Modifier.width(8.dp))
-                            top.yukonga.miuix.kmp.basic.TextButton(
-                                text = "去开启权限",
-                                onClick = {
-                                    runCatching {
-                                        installSettingsLauncher.launch(
-                                            PermissionHelper.installSourcesSettingsIntent(context)
-                                        )
-                                    }.onFailure {
-                                        android.widget.Toast.makeText(
-                                            context, "无法打开安装权限设置", android.widget.Toast.LENGTH_SHORT
-                                        ).show()
-                                    }
-                                }
-                            )
-                        }
                     }
 
                     is UpdateUiState.Failed -> {
@@ -512,17 +346,7 @@ private sealed interface UpdateUiState {
     object Checking : UpdateUiState
     data class UpToDate(val versionName: String) : UpdateUiState
     data class HasUpdate(val release: RemoteRelease) : UpdateUiState
-    data class Downloading(val percent: Int) : UpdateUiState
-    data class DownloadFailed(val release: RemoteRelease, val message: String) : UpdateUiState
-    data class NeedsPermission(val apk: File) : UpdateUiState
     data class Failed(val message: String) : UpdateUiState
-}
-
-/** 字节数格式化为可读的安装包大小。 */
-private fun formatApkSize(bytes: Long): String = when {
-    bytes >= 1024 * 1024 -> String.format("%.1f MB", bytes / 1024.0 / 1024.0)
-    bytes >= 1024 -> "${bytes / 1024} KB"
-    else -> "$bytes B"
 }
 
 @Composable

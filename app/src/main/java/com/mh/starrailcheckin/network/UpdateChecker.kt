@@ -99,9 +99,9 @@ object UpdateChecker {
         )
     }
 
-    /** 优先正文 `versionCode: 67`，兜底 tag 中第一个数字。 */
+    /** 优先正文 `versionCode: 67`（兼容无冒号空格分隔与中文冒号），兜底 tag 中第一个数字。 */
     private fun parseVersionCode(notes: String, tag: String): Int? {
-        Regex("versionCode\\s*[:：]\\s*(\\d+)").find(notes)?.let {
+        Regex("versionCode\\s*[:：]?\\s*(\\d+)").find(notes)?.let {
             return it.groupValues[1].toIntOrNull()
         }
         Regex("(\\d+)").find(tag)?.let { return it.groupValues[1].toIntOrNull() }
@@ -109,7 +109,7 @@ object UpdateChecker {
     }
 
     private fun parseVersionName(notes: String): String? =
-        Regex("versionName\\s*[:：]\\s*(\\S+)").find(notes)?.let {
+        Regex("versionName\\s*[:：]?\\s*(\\S+)").find(notes)?.let {
             it.groupValues[1].trim().trim('-').ifBlank { null }
         }
 }

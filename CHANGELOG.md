@@ -1,6 +1,9 @@
 # 更新日志
 
-## [2.22] — versionCode 79 — 2026-11-22
+## [2.22] — versionName: 2.22 — versionCode: 79 — 2026-11-22
+
+versionCode: 79
+versionName: 2.22
 
 本次为合并发布，汇总近期各 beta 迭代的全部改动。
 
